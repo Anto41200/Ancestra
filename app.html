@@ -297,6 +297,59 @@ mark { background: rgba(201,168,76,0.25); color: var(--gold2); border-radius: 2p
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+/* ── PHOTO UPLOAD ── */
+.photo-upload-zone {
+  width: 72px; height: 72px; border-radius: 50%;
+  border: 2px dashed var(--border2); background: var(--bg3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+  overflow: hidden; position: relative; margin: 0 auto 10px;
+}
+.photo-upload-zone:hover { border-color: var(--gold); }
+.photo-upload-zone img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.photo-upload-zone .photo-placeholder { font-size: 22px; color: var(--text3); }
+.photo-upload-zone .photo-edit-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.45);
+  display: none; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 16px; color: #fff;
+}
+.photo-upload-zone:hover .photo-edit-overlay { display: flex; }
+.photo-clear-btn {
+  display: none; font-size: 10px; color: var(--text3); background: none;
+  border: none; cursor: pointer; text-align: center; margin-top: 2px;
+  font-family: 'DM Sans', sans-serif; text-decoration: underline;
+}
+
+/* ── DUPLICATE WARNING ── */
+.dup-warning {
+  background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3);
+  border-radius: var(--radius); padding: 9px 12px; font-size: 12px;
+  color: var(--gold); margin-bottom: 12px; display: none;
+}
+.dup-warning.show { display: block; }
+
+/* ── TREE VIEW TOGGLE (Ascendant / Descendant) ── */
+.tree-mode-toggle {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; gap: 3px; background: var(--bg2);
+  border: 1px solid var(--border2); border-radius: var(--radius); padding: 3px;
+  z-index: 10;
+}
+.tree-mode-btn {
+  padding: 4px 10px; font-size: 11px; font-family: 'DM Sans', sans-serif;
+  border: none; border-radius: 5px; cursor: pointer;
+  background: transparent; color: var(--text2); transition: all 0.18s;
+}
+.tree-mode-btn.active { background: var(--bg4); color: var(--text); font-weight: 500; }
+
+/* ── AVATAR WITH PHOTO ── */
+.avatar-lg.has-photo {
+  background: none; border: 2px solid var(--border2);
+  padding: 0; overflow: hidden;
+}
+.avatar-lg.has-photo img { width: 100%; height: 100%; object-fit: cover; }
+
 </style>
 </head>
 <body>
@@ -389,6 +442,10 @@ mark { background: rgba(201,168,76,0.25); color: var(--gold2); border-radius: 2p
         <div class="leg-row"><div class="leg-dot" style="background:#4a8ab5"></div>Homme</div>
         <div class="leg-row"><div class="leg-dot" style="background:#b56a7a"></div>Femme</div>
         <div class="leg-row"><div class="leg-dot" style="background:#c9a84c"></div>Sélectionné</div>
+      </div>
+      <div class="tree-mode-toggle">
+        <button class="tree-mode-btn active" id="btnModeDesc" onclick="setTreeMode('descendant',this)">↓ Descendants</button>
+        <button class="tree-mode-btn" id="btnModeAsc" onclick="setTreeMode('ascendant',this)">↑ Ancêtres</button>
       </div>
       <div class="tree-hud">
         <button class="hud-btn" onclick="treeZoom(1.25)">+</button>
@@ -593,6 +650,8 @@ let searchQuery = '';
 let currentTab = 'tree';
 let modalMode = null, modalTargetId = null;
 let treeScale = 1, treeOffX = 0, treeOffY = 0;
+let treeMode = 'descendant'; // 'descendant' | 'ascendant'
+const photoCache = {}; // id -> HTMLImageElement
 let isDragging = false, dragSX = 0, dragSY = 0, dragOX = 0, dragOY = 0;
 let nodePos = {};
 
@@ -703,7 +762,10 @@ function renderDetail(id) {
   const siblings = parents.flatMap(par => getChildren(par.id)).filter(s => s.id !== id);
   contentEl.innerHTML = `
     <div class="detail-hero">
-      <div class="avatar-lg ${p.sexe}">${initials(p)}</div>
+      ${p.photo
+        ? `<div class="avatar-lg has-photo" style="width:58px;height:58px;border-radius:50%;overflow:hidden;margin-bottom:11px"><img src="${p.photo}" style="width:100%;height:100%;object-fit:cover"></div>`
+        : `<div class="avatar-lg ${p.sexe}">${initials(p)}</div>`
+      }
       <div class="detail-name">${escHtml(p.prenom+' '+p.nom)}</div>
       <div class="detail-life">${p.naissance||'?'} – ${p.deces||(p.naissance?'vivant(e)':'?')}${age?' · '+age+' ans':''}</div>
       ${rel?`<div class="detail-badge">${rel}</div>`:''}
@@ -781,13 +843,34 @@ function renderStats() {
 function computeLayout() {
   nodePos = {};
   const NW=152,NH=62,HGAP=36,VGAP=96;
-  const hasParent = new Set(DB.liens.map(l=>l.enfant));
-  const roots = DB.persons.map(p=>p.id).filter(id=>!hasParent.has(id));
-  function sw(id,vis=new Set()){if(vis.has(id))return 1;vis.add(id);const c=getChildren(id);return c.length?c.reduce((s,x)=>s+sw(x.id,vis),0):1;}
-  function place(id,x,y,vis=new Set()){if(vis.has(id))return;vis.add(id);nodePos[id]={x,y};const c=getChildren(id);if(!c.length)return;let cx=x-(c.reduce((s,x)=>s+sw(x.id,new Set()),0)*(NW+HGAP))/2+(NW+HGAP)/2;for(const ch of c){const s=sw(ch.id,new Set());place(ch.id,cx+(s-1)*(NW+HGAP)/2,y+NH+VGAP,vis);cx+=s*(NW+HGAP);}}
-  let sx=200;
-  for(const r of roots){const s=sw(r,new Set());place(r,sx+s*(NW+HGAP)/2,60);sx+=s*(NW+HGAP)+80;}
-  for(const p of DB.persons){if(!nodePos[p.id]){nodePos[p.id]={x:sx,y:60};sx+=NW+HGAP;}}
+
+  if (treeMode === 'ascendant') {
+    // ── Mode Ascendant : partir de la personne racine (isRoot) ou la 1ère, remonter vers les ancêtres
+    const rootPerson = DB.persons.find(p=>p.isRoot) || DB.persons[0];
+    if (!rootPerson) return;
+    // Place root at center-bottom, parents above
+    function swAsc(id, vis=new Set()){if(vis.has(id))return 1;vis.add(id);const pars=getParents(id);return pars.length?pars.reduce((s,x)=>s+swAsc(x.id,new Set()),0):1;}
+    function placeAsc(id, x, y, vis=new Set()){
+      if(vis.has(id))return;vis.add(id);nodePos[id]={x,y};
+      const pars=getParents(id);if(!pars.length)return;
+      let cx=x-(pars.reduce((s,x)=>s+swAsc(x.id,new Set()),0)*(NW+HGAP))/2+(NW+HGAP)/2;
+      for(const par of pars){const s=swAsc(par.id,new Set());placeAsc(par.id,cx+(s-1)*(NW+HGAP)/2,y-NH-VGAP,vis);cx+=s*(NW+HGAP);}
+    }
+    const totalW = swAsc(rootPerson.id, new Set()) * (NW+HGAP);
+    placeAsc(rootPerson.id, Math.max(200, totalW/2), 400);
+    // Place unpositioned persons
+    let sx=200;
+    for(const p of DB.persons){if(!nodePos[p.id]){nodePos[p.id]={x:sx,y:500};sx+=NW+HGAP;}}
+  } else {
+    // ── Mode Descendant (défaut)
+    const hasParent = new Set(DB.liens.map(l=>l.enfant));
+    const roots = DB.persons.map(p=>p.id).filter(id=>!hasParent.has(id));
+    function sw(id,vis=new Set()){if(vis.has(id))return 1;vis.add(id);const c=getChildren(id);return c.length?c.reduce((s,x)=>s+sw(x.id,vis),0):1;}
+    function place(id,x,y,vis=new Set()){if(vis.has(id))return;vis.add(id);nodePos[id]={x,y};const c=getChildren(id);if(!c.length)return;let cx=x-(c.reduce((s,x)=>s+sw(x.id,new Set()),0)*(NW+HGAP))/2+(NW+HGAP)/2;for(const ch of c){const s=sw(ch.id,new Set());place(ch.id,cx+(s-1)*(NW+HGAP)/2,y+NH+VGAP,vis);cx+=s*(NW+HGAP);}}
+    let sx=200;
+    for(const r of roots){const s=sw(r,new Set());place(r,sx+s*(NW+HGAP)/2,60);sx+=s*(NW+HGAP)+80;}
+    for(const p of DB.persons){if(!nodePos[p.id]){nodePos[p.id]={x:sx,y:60};sx+=NW+HGAP;}}
+  }
 }
 
 function renderTree() {
@@ -871,10 +954,17 @@ function renderTree() {
     const avX=x+19,avY=y+NH/2;
     ctx.beginPath();ctx.arc(avX,avY,14,0,Math.PI*2);
     ctx.fillStyle=p.sexe==='m'?nodeAvM:nodeAvF; ctx.fill();
-    ctx.font='500 10.5px DM Sans,sans-serif';
-    ctx.fillStyle=p.sexe==='m'?nodeAvMT:nodeAvFT;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(initials(p),avX,avY);
+    if(p.photo && photoCache[p.id]) {
+      ctx.save();
+      ctx.beginPath();ctx.arc(avX,avY,13,0,Math.PI*2);ctx.clip();
+      ctx.drawImage(photoCache[p.id],avX-13,avY-13,26,26);
+      ctx.restore();
+    } else {
+      ctx.font='500 10.5px DM Sans,sans-serif';
+      ctx.fillStyle=p.sexe==='m'?nodeAvMT:nodeAvFT;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(initials(p),avX,avY);
+    }
 
     ctx.font='500 11.5px DM Sans,sans-serif';
     ctx.fillStyle=isSel?nodeTxtS:nodeTxt;
@@ -938,20 +1028,124 @@ let touchS=null;
 tc.addEventListener('touchstart',e=>{touchS=e.touches[0];dragOX=treeOffX;dragOY=treeOffY;},{passive:true});
 tc.addEventListener('touchmove',e=>{if(!touchS)return;e.preventDefault();treeOffX=dragOX+e.touches[0].clientX-touchS.clientX;treeOffY=dragOY+e.touches[0].clientY-touchS.clientY;renderTree();},{passive:false});
 
+
+// ═══════════════════════════════════════════
+// PHOTOS
+// ═══════════════════════════════════════════
+function loadPhotoCache() {
+  // Pre-load images for canvas rendering
+  for (const p of DB.persons) {
+    if (p.photo && !photoCache[p.id]) {
+      const img = new Image();
+      img.onload = () => { photoCache[p.id] = img; renderTree(); };
+      img.src = p.photo;
+    }
+  }
+}
+
+function handlePhotoUpload(file, personId) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Resize to max 200x200 for storage efficiency
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const size = 200;
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      // Crop to square centered
+      const min = Math.min(img.width, img.height);
+      const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      if (personId) {
+        // Editing existing person
+        const p = getPerson(personId);
+        if (p) { p.photo = dataUrl; photoCache[personId] = img; scheduleSave(); refresh(); toast('Photo mise à jour'); }
+      } else {
+        // In modal (new person being created)
+        document.getElementById('fPhotoPreview').src = dataUrl;
+        document.getElementById('fPhotoPreview').style.display = 'block';
+        document.getElementById('fPhotoPlaceholder').style.display = 'none';
+        document.getElementById('fPhotoClear').style.display = 'block';
+        document.getElementById('fPhotoEditOverlay').style.display = '';
+        document.getElementById('fPhotoData').value = dataUrl;
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearModalPhoto() {
+  document.getElementById('fPhotoPreview').style.display = 'none';
+  document.getElementById('fPhotoPlaceholder').style.display = 'block';
+  document.getElementById('fPhotoClear').style.display = 'none';
+  document.getElementById('fPhotoData').value = '';
+}
+
+// ═══════════════════════════════════════════
+// DUPLICATE DETECTION
+// ═══════════════════════════════════════════
+function checkDuplicate(prenom, nom, naissance, excludeId) {
+  const p = prenom.trim().toLowerCase(), n = nom.trim().toLowerCase();
+  return DB.persons.find(x =>
+    x.id !== excludeId &&
+    x.prenom.toLowerCase() === p &&
+    x.nom.toLowerCase() === n &&
+    (naissance ? x.naissance === naissance : true)
+  );
+}
+
+function onFormInput() {
+  const prenom = (document.getElementById('fPrenom')||{value:''}).value;
+  const nom = (document.getElementById('fNom')||{value:''}).value;
+  const naissance = (document.getElementById('fNaissance')||{value:''}).value;
+  const dup = checkDuplicate(prenom, nom, naissance, modalTargetId);
+  const warn = document.getElementById('dupWarning');
+  if (warn) warn.classList.toggle('show', !!dup);
+}
+
+// ═══════════════════════════════════════════
+// TREE MODE (Ascendant / Descendant)
+// ═══════════════════════════════════════════
+function setTreeMode(mode, btn) {
+  treeMode = mode;
+  document.querySelectorAll('.tree-mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  computeLayout();
+  renderTree();
+  setTimeout(treeFit, 80);
+}
+
 // ═══════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════
 function personForm(p){
   const v=f=>p?escHtml(p[f]||''):'';
-  return`<div class="form-grid">
-    <div class="form-group"><label>Prénom *</label><input id="fPrenom" value="${v('prenom')}" placeholder="Prénom"></div>
-    <div class="form-group"><label>Nom *</label><input id="fNom" value="${v('nom')}" placeholder="Nom"></div>
+  const hasPhoto = p && p.photo;
+  return`
+  <div id="dupWarning" class="dup-warning">⚠️ Une personne similaire existe déjà dans l'arbre.</div>
+  <div style="text-align:center;margin-bottom:14px">
+    <input type="file" id="fPhotoFile" accept="image/*" style="display:none" onchange="handlePhotoUpload(this.files[0],null);this.value=''">
+    <div class="photo-upload-zone" onclick="document.getElementById('fPhotoFile').click()" title="Ajouter une photo">
+      <img id="fPhotoPreview" src="${hasPhoto?p.photo:''}" style="display:${hasPhoto?'block':'none'}">
+      <span id="fPhotoPlaceholder" class="photo-placeholder" style="display:${hasPhoto?'none':'block'}">📷</span>
+      <div id="fPhotoEditOverlay" class="photo-edit-overlay">✎</div>
+    </div>
+    <button type="button" class="photo-clear-btn" id="fPhotoClear" style="display:${hasPhoto?'block':'none'}" onclick="clearModalPhoto()">Supprimer la photo</button>
+    <input type="hidden" id="fPhotoData" value="${hasPhoto?p.photo:''}">
+  </div>
+  <div class="form-grid" id="mainFormGrid">
+    <div class="form-group"><label>Prénom *</label><input id="fPrenom" value="${v('prenom')}" placeholder="Prénom" oninput="onFormInput()"></div>
+    <div class="form-group"><label>Nom *</label><input id="fNom" value="${v('nom')}" placeholder="Nom" oninput="onFormInput()"></div>
     <div class="form-group"><label>Sexe</label><select id="fSexe"><option value="m"${p&&p.sexe==='m'?' selected':''}>Homme</option><option value="f"${p&&p.sexe==='f'?' selected':''}>Femme</option></select></div>
     <div class="form-group"><label>Profession</label><input id="fProfession" value="${v('profession')}" placeholder="Métier"></div>
   </div>
   <div class="form-section">Naissance</div>
   <div class="form-grid">
-    <div class="form-group"><label>Année</label><input id="fNaissance" value="${v('naissance')}" placeholder="ex: 1945"></div>
+    <div class="form-group"><label>Année</label><input id="fNaissance" value="${v('naissance')}" placeholder="ex: 1945" oninput="onFormInput()"></div>
     <div class="form-group"><label>Lieu</label><input id="fLieuNaissance" value="${v('lieu_naissance')}" placeholder="Ville, Pays"></div>
   </div>
   <div class="form-section">Décès</div>
@@ -999,7 +1193,9 @@ function saveModal(){
   if(modalMode==='add'||modalMode==='addChild'){
     const prenom=document.getElementById('fPrenom').value.trim(),nom=document.getElementById('fNom').value.trim();
     if(!prenom||!nom){alert('Prénom et nom requis.');return;}
-    const np={id:DB.nextId++,prenom,nom,sexe:document.getElementById('fSexe').value,naissance:document.getElementById('fNaissance').value.trim(),deces:document.getElementById('fDeces').value.trim(),lieu_naissance:document.getElementById('fLieuNaissance').value.trim(),lieu_deces:document.getElementById('fLieuDeces').value.trim(),profession:document.getElementById('fProfession').value.trim(),notes:document.getElementById('fNotes').value.trim()};
+    const photo=document.getElementById('fPhotoData')?.value||'';
+    const np={id:DB.nextId++,prenom,nom,sexe:document.getElementById('fSexe').value,naissance:document.getElementById('fNaissance').value.trim(),deces:document.getElementById('fDeces').value.trim(),lieu_naissance:document.getElementById('fLieuNaissance').value.trim(),lieu_deces:document.getElementById('fLieuDeces').value.trim(),profession:document.getElementById('fProfession').value.trim(),notes:document.getElementById('fNotes').value.trim(),photo};
+    if(photo){const img=new Image();img.onload=()=>{photoCache[np.id]=img;renderTree();};img.src=photo;}
     DB.persons.push(np);
     if(modalMode==='addChild'&&modalTargetId)DB.liens.push({parent:modalTargetId,enfant:np.id});
     selectedId=np.id; toast(`${prenom} ${nom} ajouté(e)`);
@@ -1014,6 +1210,8 @@ function saveModal(){
     p.lieu_deces=document.getElementById('fLieuDeces').value.trim();
     p.profession=document.getElementById('fProfession').value.trim();
     p.notes=document.getElementById('fNotes').value.trim();
+    const photo=document.getElementById('fPhotoData')?.value;
+    if(photo!==undefined){p.photo=photo;if(photo){const img=new Image();img.onload=()=>{photoCache[p.id]=img;renderTree();};img.src=photo;}else{delete photoCache[p.id];}}
     toast(`${p.prenom} ${p.nom} modifié(e)`);
   } else if(modalMode==='addParent'){
     const pid=parseInt(document.getElementById('fLinkId').value); if(!pid){alert('Sélectionnez un parent.');return;}
@@ -1176,6 +1374,7 @@ async function init(){
     }
   }
 
+  loadPhotoCache();
   renderList();
   computeLayout();
   renderTree();
