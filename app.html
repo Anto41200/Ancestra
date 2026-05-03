@@ -451,26 +451,12 @@ let currentUser = null;
 let isDemoMode = false;
 let syncTimeout = null;
 
-// ── DEFAULT DATA ──
+// ── DEFAULT DATA (arbre vide — les vraies données viennent de l'onboarding) ──
 const DEFAULT_DATA = {
-  persons:[
-    {id:1,prenom:'Jean',nom:'Martin',sexe:'m',naissance:'1920',deces:'1985',lieu_naissance:'Paris',lieu_deces:'Lyon',profession:'Agriculteur',notes:'Fondateur de la lignée'},
-    {id:2,prenom:'Marie',nom:'Dupont',sexe:'f',naissance:'1922',deces:'1991',lieu_naissance:'Bordeaux',lieu_deces:'Lyon',profession:'Institutrice',notes:''},
-    {id:3,prenom:'Émile',nom:'Martin',sexe:'m',naissance:'1895',deces:'1962',lieu_naissance:'Dijon',lieu_deces:'Paris',profession:'Notaire',notes:''},
-    {id:4,prenom:'Hélène',nom:'Rousseau',sexe:'f',naissance:'1898',deces:'1974',lieu_naissance:'Dijon',lieu_deces:'Lyon',profession:'',notes:''},
-    {id:5,prenom:'Pierre',nom:'Martin',sexe:'m',naissance:'1948',deces:'',lieu_naissance:'Lyon',lieu_deces:'',profession:'Médecin',notes:''},
-    {id:6,prenom:'Claire',nom:'Lefebvre',sexe:'f',naissance:'1950',deces:'',lieu_naissance:'Nantes',lieu_deces:'',profession:'Avocate',notes:''},
-    {id:7,prenom:'Thomas',nom:'Martin',sexe:'m',naissance:'1978',deces:'',lieu_naissance:'Lyon',lieu_deces:'',profession:'Professeur',notes:''},
-    {id:8,prenom:'Lucas',nom:'Martin',sexe:'m',naissance:'2006',deces:'',lieu_naissance:'Paris',lieu_deces:'',profession:'',notes:''},
-  ],
-  liens:[
-    {parent:3,enfant:1},{parent:4,enfant:1},
-    {parent:1,enfant:5},{parent:2,enfant:5},
-    {parent:5,enfant:7},{parent:6,enfant:7},
-    {parent:7,enfant:8},
-  ],
-  conjoints:[{p1:1,p2:2},{p1:5,p2:6}],
-  nextId:9
+  persons: [],
+  liens: [],
+  conjoints: [],
+  nextId: 1
 };
 
 let DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
@@ -504,14 +490,33 @@ async function loadFromCloud() {
       setSyncStatus('ok');
       return true;
     }
+    // Rien dans le cloud — chercher en localStorage (clé user-specific d'abord, puis clé onboarding)
+    const localUser = localStorage.getItem(STORE_KEY + '_' + currentUser.id);
+    const localOnboarding = localStorage.getItem(STORE_KEY);
+    const localData = localUser || localOnboarding;
+    if (localData) {
+      try {
+        const parsed = JSON.parse(localData);
+        // Ne pas charger le DEFAULT_DATA si c'est les données démo (contient Jean Martin)
+        if (parsed && parsed.persons && parsed.persons.length > 0) {
+          DB = parsed;
+          // Sauvegarder dans le cloud maintenant qu'on a un user connecté
+          await saveToCloud();
+          setSyncStatus('ok');
+          return true;
+        }
+      } catch(e) {}
+    }
     setSyncStatus('ok');
     return false;
   } catch(e) {
     console.warn('Cloud load error:', e);
     setSyncStatus('error');
-    // Fallback to local
-    const local = localStorage.getItem(STORE_KEY + '_' + currentUser.id);
-    if (local) { try { DB = JSON.parse(local); } catch(e){} }
+    // Fallback to local — essayer les deux clés
+    const localUser = localStorage.getItem(STORE_KEY + '_' + currentUser.id);
+    const localOnboarding = localStorage.getItem(STORE_KEY);
+    const localData = localUser || localOnboarding;
+    if (localData) { try { DB = JSON.parse(localData); } catch(e){} }
     return false;
   }
 }
@@ -820,6 +825,23 @@ function renderTree() {
   const plusSt   = cs.getPropertyValue('--plus-stroke').trim()    || 'rgba(201,168,76,0.5)';
   const plusTxt  = cs.getPropertyValue('--plus-text').trim()      || '#c9a84c';
 
+  // Empty state
+  if (!DB.persons.length) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.font = '48px serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🌳', w/2, h/2 - 50);
+    ctx.font = '500 16px DM Sans,sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillText('Votre arbre est vide', w/2, h/2 + 10);
+    ctx.font = '300 13px DM Sans,sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.13)';
+    ctx.fillText('Cliquez sur « + Ajouter » pour commencer', w/2, h/2 + 36);
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
   ctx.translate(treeOffX,treeOffY);
   ctx.scale(treeScale,treeScale);
@@ -920,7 +942,7 @@ tc.addEventListener('touchmove',e=>{if(!touchS)return;e.preventDefault();treeOff
 // MODAL
 // ═══════════════════════════════════════════
 function personForm(p){
-  const v=f=>p?escHtml(p[f]||'):'';
+  const v=f=>p?escHtml(p[f]||''):'';
   return`<div class="form-grid">
     <div class="form-group"><label>Prénom *</label><input id="fPrenom" value="${v('prenom')}" placeholder="Prénom"></div>
     <div class="form-group"><label>Nom *</label><input id="fNom" value="${v('nom')}" placeholder="Nom"></div>
@@ -938,7 +960,7 @@ function personForm(p){
     <div class="form-group"><label>Lieu</label><input id="fLieuDeces" value="${v('lieu_deces')}" placeholder="Ville, Pays"></div>
   </div>
   <div class="form-section">Notes</div>
-  <div class="form-group full"><textarea id="fNotes" placeholder="Anecdotes, sources…">${p?escHtml(p.notes||'):''}</textarea></div>`;
+  <div class="form-group full"><textarea id="fNotes" placeholder="Anecdotes, sources…">${p?escHtml(p.notes||''):''}</textarea></div>`;
 }
 
 function linkSelectForm(excludeId, label) {
