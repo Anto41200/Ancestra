@@ -585,7 +585,7 @@ const SUPABASE_URL = 'https://jhcuqfyxtkpslyddmarz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_vBx0Rl6GQF-V7YNfaKuxkg_wqrkyXws';
 // ═══════════════════════════════════════════════════════
 
-let supabase = null;
+let sbClient = null;
 let configured = false;
 
 function initSupabase() {
@@ -597,7 +597,7 @@ function initSupabase() {
     return false;
   }
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     configured = true;
     return true;
   } catch(e) {
