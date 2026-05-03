@@ -456,8 +456,13 @@ document.addEventListener('click', e => {
 });
 
 async function doLogout() {
-  if (supabase) await supabase.auth.signOut();
+  try {
+    if (supabase) await supabase.auth.signOut();
+  } catch(e) {
+    console.warn('Logout error:', e);
+  }
   localStorage.removeItem(DEMO_MODE_KEY);
+  localStorage.removeItem('ancestra_user');
   window.location.href = 'index.html';
 }
 
@@ -889,6 +894,11 @@ async function init(){
   }
 
   try {
+    // Vérification config avant de tenter la connexion
+    if (!SUPABASE_URL || SUPABASE_URL === 'VOTRE_URL' || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'VOTRE_ANON_KEY') {
+      throw new Error('SUPABASE_NOT_CONFIGURED');
+    }
+
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Timeout 5s max sur getSession
@@ -920,13 +930,19 @@ async function init(){
 
   } catch(e) {
     console.error('Supabase error:', e);
-    showFatalError(e.message);
-    setSyncStatus('error');
+    const isMisconfig = e.message === 'SUPABASE_NOT_CONFIGURED';
+    if (!isMisconfig) showFatalError(e.message);
+    setSyncStatus(isMisconfig ? 'local' : 'error');
     // Charger les données locales quand même
     const local = localStorage.getItem(STORE_KEY);
     if(local) try{DB=JSON.parse(local);}catch(err){}
-    document.getElementById('userAv').textContent = '!';
-    document.getElementById('userName').textContent = 'Erreur';
+    const localU = JSON.parse(localStorage.getItem('ancestra_user')||'{}');
+    document.getElementById('userAv').textContent = (localU.name||'?')[0].toUpperCase();
+    document.getElementById('userName').textContent = localU.name ? localU.name.split(' ')[0] : (isMisconfig ? 'Démo' : 'Erreur');
+    // Si pas en mode démo et erreur non timeout, retour login
+    if (!isDemoMode && !isMisconfig) {
+      setTimeout(() => { window.location.href='index.html'; }, 3000);
+    }
   }
 
   renderList();
