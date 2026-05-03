@@ -925,7 +925,9 @@ function showWelcome(name) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => { overlay.style.opacity = '1'; });
   });
-  setTimeout(() => { window.location.href = 'app.html'; }, 1800);
+  // Redirect: if onboarding already done → app.html, else → onboarding.html
+  const onboardingDone = !!localStorage.getItem('ancestra_onboarding_done');
+  setTimeout(() => { window.location.href = onboardingDone ? 'app.html' : 'onboarding.html'; }, 1800);
 }
 
 // ── DEMO MODE ──
@@ -985,7 +987,7 @@ async function doGoogle() {
   try {
     const { error } = await sbClient.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/app.html' }
+      options: { redirectTo: window.location.origin + '/onboarding.html' }
     });
     if (error) throw error;
     // Si on arrive ici sans redirection (popup bloquée, domaine non autorisé)
@@ -1007,7 +1009,7 @@ async function doReset() {
   if (!configured) { showError('Configurez Supabase pour utiliser cette fonctionnalité.'); return; }
   const email = document.getElementById('loginEmail').value.trim();
   if (!email) { showError('Entrez votre email pour réinitialiser votre mot de passe.'); return; }
-  await sbClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/app.html' });
+  await sbClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/index.html' });
   showSuccess('Email de réinitialisation envoyé !');
 }
 
