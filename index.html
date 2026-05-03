@@ -958,14 +958,16 @@ async function doLogin() {
 async function doRegister() {
   clearMessages();
 
-  // Si Supabase non configuré → mode démo
+  // Ré-initialiser Supabase si nécessaire (ex: timeout au chargement)
+  if (!configured) initSupabase();
+
+  // Si toujours pas configuré → mode démo
   if (!configured) { demoLogin(); return; }
 
   const name = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const pass = document.getElementById('regPass').value;
 
-  // Validation locale
   if (!name) { showError('Veuillez entrer votre prénom et nom.'); return; }
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Adresse email invalide.'); return; }
   if (!pass) { showError('Veuillez entrer un mot de passe.'); return; }
@@ -983,38 +985,34 @@ async function doRegister() {
     setLoading('registerBtn', false, 'Créer mon compte');
 
     if (error) {
-      // Traduction des erreurs Supabase en français
       const msg = error.message || '';
       if (msg.includes('already registered') || msg.includes('User already registered')) {
         showError('Un compte existe déjà avec cet email. Essayez de vous connecter.');
       } else if (msg.includes('Password should be')) {
-        showError('Mot de passe trop faible. Utilisez au moins 8 caractères avec des lettres et chiffres.');
+        showError('Mot de passe trop faible. Utilisez au moins 8 caractères avec lettres et chiffres.');
       } else if (msg.includes('Invalid email')) {
         showError('Adresse email invalide.');
       } else if (msg.includes('signup is disabled') || msg.includes('Signups not allowed')) {
-        showError('Les inscriptions sont désactivées pour le moment.');
+        showError('Les inscriptions sont désactivées côté Supabase.');
       } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
-        showError('Trop de tentatives. Attendez quelques minutes et réessayez.');
+        showError('Trop de tentatives. Attendez quelques minutes.');
       } else {
-        showError('Erreur : ' + msg);
+        showError('Erreur inscription : ' + msg);
       }
       return;
     }
 
-    // Succès
-    if (data.user && !data.session) {
-      // Email de confirmation requis
-      showSuccess('✓ Compte créé ! Vérifiez votre boîte email pour confirmer votre inscription, puis connectez-vous.');
-    } else if (data.session) {
-      // Pas de confirmation email → redirect direct
+    if (data.session) {
+      // Confirmation email désactivée → connexion directe
       showWelcome(name);
     } else {
-      showSuccess('✓ Compte créé ! Vous pouvez maintenant vous connecter.');
+      // Confirmation email requise
+      showSuccess('✓ Compte créé ! Vérifiez votre boîte email pour confirmer, puis connectez-vous.');
     }
 
   } catch (e) {
     setLoading('registerBtn', false, 'Créer mon compte');
-    showError('Impossible de joindre le serveur. Vérifiez votre connexion internet.');
+    showError('Impossible de joindre le serveur. Vérifiez votre connexion.');
     console.error('Register error:', e);
   }
 }
@@ -1065,21 +1063,22 @@ function hideLoading() {
 async function init() {
   initBG();
   drawBG();
+  // Toujours init Supabase en premier
+  initSupabase();
   setTimeout(hideLoading, 3000);
+  if (!configured) { hideLoading(); return; }
   try {
-    const ok = initSupabase();
-    if (ok) {
-      const sessionPromise = sbClient.auth.getSession();
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
-      const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
-      if (session) {
-        const name = session.user?.user_metadata?.full_name || session.user?.email || '';
-        showWelcome(name);
-        return;
-      }
+    const sessionPromise = sbClient.auth.getSession();
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+    const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+    if (session) {
+      const name = session.user?.user_metadata?.full_name || session.user?.email || '';
+      showWelcome(name);
+      return;
     }
   } catch(e) {
-    console.warn('Supabase init error:', e.message);
+    console.warn('Supabase session check error:', e.message);
+    // Ne pas bloquer — l'utilisateur peut quand même s'inscrire/connecter
   }
   hideLoading();
 }
