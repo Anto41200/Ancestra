@@ -925,7 +925,6 @@ function showWelcome(name) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => { overlay.style.opacity = '1'; });
   });
-  // Redirect: if onboarding already done → app.html, else → onboarding.html
   const onboardingDone = !!localStorage.getItem('ancestra_onboarding_done');
   setTimeout(() => { window.location.href = onboardingDone ? 'app.html' : 'onboarding.html'; }, 1800);
 }
@@ -957,24 +956,66 @@ async function doLogin() {
 
 // ── REGISTER ──
 async function doRegister() {
-  if (!configured) { demoLogin(); return; }
   clearMessages();
+
+  // Si Supabase non configuré → mode démo
+  if (!configured) { demoLogin(); return; }
+
   const name = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const pass = document.getElementById('regPass').value;
-  if (!name || !email || !pass) { showError('Veuillez remplir tous les champs.'); return; }
+
+  // Validation locale
+  if (!name) { showError('Veuillez entrer votre prénom et nom.'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Adresse email invalide.'); return; }
+  if (!pass) { showError('Veuillez entrer un mot de passe.'); return; }
   if (pass.length < 8) { showError('Le mot de passe doit contenir au moins 8 caractères.'); return; }
+
   setLoading('registerBtn', true, '');
-  const { data, error } = await sbClient.auth.signUp({
-    email, password: pass,
-    options: { data: { full_name: name } }
-  });
-  setLoading('registerBtn', false, 'Créer mon compte');
-  if (error) { showError(error.message); return; }
-  if (data.user && !data.session) {
-    showSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.');
-  } else {
-    showWelcome(name);
+
+  try {
+    const { data, error } = await sbClient.auth.signUp({
+      email,
+      password: pass,
+      options: { data: { full_name: name } }
+    });
+
+    setLoading('registerBtn', false, 'Créer mon compte');
+
+    if (error) {
+      // Traduction des erreurs Supabase en français
+      const msg = error.message || '';
+      if (msg.includes('already registered') || msg.includes('User already registered')) {
+        showError('Un compte existe déjà avec cet email. Essayez de vous connecter.');
+      } else if (msg.includes('Password should be')) {
+        showError('Mot de passe trop faible. Utilisez au moins 8 caractères avec des lettres et chiffres.');
+      } else if (msg.includes('Invalid email')) {
+        showError('Adresse email invalide.');
+      } else if (msg.includes('signup is disabled') || msg.includes('Signups not allowed')) {
+        showError('Les inscriptions sont désactivées pour le moment.');
+      } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
+        showError('Trop de tentatives. Attendez quelques minutes et réessayez.');
+      } else {
+        showError('Erreur : ' + msg);
+      }
+      return;
+    }
+
+    // Succès
+    if (data.user && !data.session) {
+      // Email de confirmation requis
+      showSuccess('✓ Compte créé ! Vérifiez votre boîte email pour confirmer votre inscription, puis connectez-vous.');
+    } else if (data.session) {
+      // Pas de confirmation email → redirect direct
+      showWelcome(name);
+    } else {
+      showSuccess('✓ Compte créé ! Vous pouvez maintenant vous connecter.');
+    }
+
+  } catch (e) {
+    setLoading('registerBtn', false, 'Créer mon compte');
+    showError('Impossible de joindre le serveur. Vérifiez votre connexion internet.');
+    console.error('Register error:', e);
   }
 }
 
@@ -987,7 +1028,7 @@ async function doGoogle() {
   try {
     const { error } = await sbClient.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/onboarding.html' }
+      options: { redirectTo: window.location.origin + '/app.html' }
     });
     if (error) throw error;
     // Si on arrive ici sans redirection (popup bloquée, domaine non autorisé)
@@ -1009,7 +1050,7 @@ async function doReset() {
   if (!configured) { showError('Configurez Supabase pour utiliser cette fonctionnalité.'); return; }
   const email = document.getElementById('loginEmail').value.trim();
   if (!email) { showError('Entrez votre email pour réinitialiser votre mot de passe.'); return; }
-  await sbClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/index.html' });
+  await sbClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/app.html' });
   showSuccess('Email de réinitialisation envoyé !');
 }
 
