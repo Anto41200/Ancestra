@@ -8,518 +8,118 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --bg: #0c0b09;
-  --bg2: #141310;
-  --bg3: #1e1d1a;
-  --bg4: #282724;
-  --border: rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.13);
-  --text: #f2ede4;
-  --text2: #9a968f;
-  --text3: #4e4c48;
-  --gold: #c9a84c;
-  --gold2: #e8c96a;
-  --gold-dim: rgba(201,168,76,0.15);
-  --gold-glow: rgba(201,168,76,0.08);
-  --radius: 10px;
-  --radius-lg: 16px;
+  --bg: #0c0b09; --bg2: #141310; --bg3: #1e1d1a; --bg4: #282724;
+  --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+  --text: #f2ede4; --text2: #9a968f; --text3: #4e4c48;
+  --gold: #c9a84c; --gold2: #e8c96a; --gold-dim: rgba(201,168,76,0.15);
+  --radius: 10px; --radius-lg: 16px;
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  overflow: hidden;
-}
+.bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 
-.bg-canvas {
-  position: fixed; inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
+.page { position: relative; z-index: 1; height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
 
-.page {
-  position: relative;
-  z-index: 1;
-  height: 100vh;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-}
+header { display: flex; align-items: center; justify-content: space-between; padding: 20px 40px; }
+.logo { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--gold); display: flex; align-items: center; gap: 10px; letter-spacing: 0.03em; }
+.logo-mark { width: 32px; height: 32px; border: 1px solid var(--gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--gold-dim); }
+.header-badge { font-size: 11px; padding: 4px 12px; border: 1px solid var(--border2); border-radius: 20px; color: var(--text2); }
 
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 40px;
-}
+.center { display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 20px; }
+.hero-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gold); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; animation: fadeUp 0.6s ease both; }
+.hero-eyebrow::before, .hero-eyebrow::after { content: ''; width: 30px; height: 1px; background: var(--gold); opacity: 0.4; }
+.hero-title { font-family: 'Playfair Display', serif; font-size: clamp(32px, 4vw, 56px); line-height: 1.1; text-align: center; margin-bottom: 14px; animation: fadeUp 0.6s 0.1s ease both; }
+.hero-title em { font-style: italic; color: var(--gold); }
+.hero-sub { font-size: 14px; color: var(--text2); text-align: center; max-width: 380px; line-height: 1.7; margin-bottom: 28px; font-weight: 300; animation: fadeUp 0.6s 0.2s ease both; }
 
-.logo {
-  font-family: 'Playfair Display', serif;
-  font-size: 22px;
-  color: var(--gold);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  letter-spacing: 0.03em;
-}
-.logo-mark {
-  width: 32px; height: 32px;
-  border: 1px solid var(--gold);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--gold-dim);
-}
+/* AUTH CARD */
+.auth-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-lg); width: 100%; max-width: 380px; overflow: hidden; animation: fadeUp 0.6s 0.3s ease both; box-shadow: 0 0 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.05); }
+.auth-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.auth-tab { flex: 1; padding: 14px; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500; background: transparent; border: none; color: var(--text3); cursor: pointer; transition: all 0.2s; position: relative; }
+.auth-tab.active { color: var(--text); background: var(--bg3); }
+.auth-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--gold); }
+.auth-body { padding: 22px; }
 
-.header-badge {
-  font-size: 11px;
-  padding: 4px 12px;
-  border: 1px solid var(--border2);
-  border-radius: 20px;
-  color: var(--text2);
-}
-
-.center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 0;
-  padding: 20px;
-}
-
-.hero-eyebrow {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--gold);
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  animation: fadeUp 0.6s ease both;
-}
-.hero-eyebrow::before, .hero-eyebrow::after {
-  content: '';
-  width: 30px; height: 1px;
-  background: var(--gold);
-  opacity: 0.4;
-}
-
-.hero-title {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(36px, 5vw, 64px);
-  line-height: 1.1;
-  text-align: center;
-  margin-bottom: 16px;
-  animation: fadeUp 0.6s 0.1s ease both;
-}
-.hero-title em {
-  font-style: italic;
-  color: var(--gold);
-}
-
-.hero-sub {
-  font-size: 15px;
-  color: var(--text2);
-  text-align: center;
-  max-width: 420px;
-  line-height: 1.7;
-  margin-bottom: 36px;
-  font-weight: 300;
-  animation: fadeUp 0.6s 0.2s ease both;
-}
-
-/* ── AUTH CARD ── */
-.auth-card {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 400px;
-  overflow: hidden;
-  animation: fadeUp 0.6s 0.3s ease both;
-  box-shadow: 0 0 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.05);
-}
-
-.auth-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-}
-.auth-tab {
-  flex: 1;
-  padding: 14px;
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 500;
-  background: transparent;
-  border: none;
-  color: var(--text3);
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-}
-.auth-tab.active {
-  color: var(--text);
-  background: var(--bg3);
-}
-.auth-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px; left: 0; right: 0;
-  height: 2px;
-  background: var(--gold);
-}
-
-.auth-body { padding: 24px; }
-
-.form-group {
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.form-group label {
-  font-size: 11.5px;
-  color: var(--text3);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-/* ── AMÉLIORATION 1 : Input avec bouton œil ── */
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-.input-wrapper input {
-  width: 100%;
-  padding-right: 40px !important;
-}
-.eye-btn {
-  position: absolute;
-  right: 12px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text3);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  transition: color 0.2s;
-}
+.form-group { margin-bottom: 13px; display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.input-wrapper { position: relative; display: flex; align-items: center; }
+.input-wrapper input { width: 100%; padding-right: 40px !important; }
+.eye-btn { position: absolute; right: 12px; background: none; border: none; cursor: pointer; color: var(--text3); padding: 0; display: flex; align-items: center; transition: color 0.2s; }
 .eye-btn:hover { color: var(--gold); }
-
-.form-group input {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 14px;
-  font-size: 13.5px;
-  font-family: 'DM Sans', sans-serif;
-  color: var(--text);
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  width: 100%;
-}
+.form-group input { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text); outline: none; transition: border-color 0.2s, box-shadow 0.2s; width: 100%; }
 .form-group input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,168,76,0.08); }
 .form-group input::placeholder { color: var(--text3); }
-
-/* Validation email */
 .form-group input.input-valid { border-color: rgba(106,201,122,0.5); }
 .form-group input.input-error { border-color: rgba(201,106,106,0.5); }
 
-/* ── AMÉLIORATION 2 : Force du mot de passe ── */
-.password-strength {
-  display: flex;
-  gap: 4px;
-  margin-top: 6px;
-}
-.strength-bar {
-  flex: 1;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--bg4);
-  transition: background 0.3s;
-}
-.strength-label {
-  font-size: 10px;
-  margin-top: 4px;
-  height: 14px;
-  transition: color 0.3s;
-}
+.password-strength { display: flex; gap: 4px; margin-top: 5px; }
+.strength-bar { flex: 1; height: 3px; border-radius: 2px; background: var(--bg4); transition: background 0.3s; }
+.strength-label { font-size: 10px; margin-top: 3px; height: 13px; transition: color 0.3s; }
 .strength-weak .strength-bar:nth-child(1) { background: #c97a6a; }
-.strength-medium .strength-bar:nth-child(1),
-.strength-medium .strength-bar:nth-child(2) { background: #c9a84c; }
+.strength-medium .strength-bar:nth-child(1), .strength-medium .strength-bar:nth-child(2) { background: #c9a84c; }
 .strength-strong .strength-bar { background: #6ac97a; }
-
-/* Hint email */
-.input-hint {
-  font-size: 10.5px;
-  margin-top: 3px;
-  height: 14px;
-  transition: color 0.2s;
-}
+.input-hint { font-size: 10.5px; margin-top: 2px; height: 13px; }
 .hint-ok { color: #6ac97a; }
 .hint-err { color: #c97a6a; }
 
-.auth-error {
-  font-size: 12px;
-  color: #c97a6a;
-  background: rgba(201,106,106,0.08);
-  border: 1px solid rgba(201,106,106,0.2);
-  border-radius: var(--radius);
-  padding: 9px 12px;
-  margin-bottom: 14px;
-  display: none;
-}
-.auth-success {
-  font-size: 12px;
-  color: #6ac97a;
-  background: rgba(106,201,122,0.08);
-  border: 1px solid rgba(106,201,122,0.2);
-  border-radius: var(--radius);
-  padding: 9px 12px;
-  margin-bottom: 14px;
-  display: none;
-}
+.auth-msg { font-size: 12px; border-radius: var(--radius); padding: 9px 12px; margin-bottom: 12px; display: none; line-height: 1.5; }
+.auth-error { color: #c97a6a; background: rgba(201,106,106,0.08); border: 1px solid rgba(201,106,106,0.2); }
+.auth-success { color: #6ac97a; background: rgba(106,201,122,0.08); border: 1px solid rgba(106,201,122,0.2); }
 
-.btn-auth {
-  width: 100%;
-  padding: 12px;
-  background: var(--gold);
-  color: #1a1610;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-}
+.btn-auth { width: 100%; padding: 12px; background: var(--gold); color: #1a1610; border: none; border-radius: var(--radius); font-size: 13.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; transition: background 0.2s; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; }
 .btn-auth:hover { background: var(--gold2); }
 .btn-auth:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 14px 0;
-  font-size: 11px;
-  color: var(--text3);
-}
-.auth-divider::before, .auth-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
+.auth-divider { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-size: 11px; color: var(--text3); }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-.btn-google {
-  width: 100%;
-  padding: 11px;
-  background: transparent;
-  border: 1px solid var(--border2);
-  border-radius: var(--radius);
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
-  color: var(--text2);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-}
-.btn-google:hover { border-color: var(--border2); background: var(--bg3); color: var(--text); }
+.btn-google { width: 100%; padding: 11px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius); font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text2); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 9px; }
+.btn-google:hover { background: var(--bg3); color: var(--text); }
 .btn-google:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── AMÉLIORATION 4 : message fallback Google ── */
-.google-fallback {
-  display: none;
-  margin-top: 10px;
-  font-size: 11.5px;
-  color: var(--text3);
-  text-align: center;
-  line-height: 1.6;
-  padding: 8px 12px;
-  background: rgba(201,168,76,0.05);
-  border: 1px solid rgba(201,168,76,0.1);
-  border-radius: var(--radius);
-}
-.google-fallback a {
-  color: var(--gold);
-  cursor: pointer;
-  text-decoration: underline;
-}
+.google-fallback { display: none; margin-top: 10px; font-size: 11.5px; color: var(--text3); text-align: center; line-height: 1.6; padding: 8px 12px; background: rgba(201,168,76,0.05); border: 1px solid rgba(201,168,76,0.1); border-radius: var(--radius); }
+.google-fallback a { color: var(--gold); cursor: pointer; text-decoration: underline; }
 
-/* ── CHANGELOG ── */
-.changelog {
-  position: fixed;
-  bottom: 24px;
-  left: 32px;
-  max-width: 280px;
-  z-index: 10;
-  animation: fadeUp 0.6s 0.5s ease both;
-}
-.changelog-title {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text3);
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.changelog-title::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-.changelog-item {
-  display: flex;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-}
+.auth-footer { margin-top: 10px; text-align: center; }
+.auth-footer span { font-size: 11.5px; color: var(--text3); cursor: pointer; }
+.auth-footer span:hover { color: var(--gold); }
+
+/* CHANGELOG */
+.changelog { position: fixed; bottom: 24px; left: 32px; max-width: 280px; z-index: 10; animation: fadeUp 0.6s 0.5s ease both; }
+.changelog-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.changelog-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.changelog-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .changelog-item:last-child { border: none; }
-.cl-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--gold);
-  flex-shrink: 0;
-  margin-top: 5px;
-  opacity: 0.6;
-}
+.cl-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0; margin-top: 5px; opacity: 0.6; }
 .cl-dot.new { opacity: 1; box-shadow: 0 0 6px var(--gold); }
 .cl-version { font-size: 10px; color: var(--gold); font-weight: 500; }
 .cl-desc { font-size: 11.5px; color: var(--text2); margin-top: 1px; line-height: 1.5; }
 .cl-date { font-size: 10px; color: var(--text3); margin-top: 2px; }
 
-.bottom-right {
-  position: fixed;
-  bottom: 24px;
-  right: 32px;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  z-index: 10;
-}
-.stat-pill {
-  font-size: 11px;
-  color: var(--text3);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 4px 12px;
-  background: var(--bg2);
-}
+.bottom-right { position: fixed; bottom: 24px; right: 32px; display: flex; gap: 6px; align-items: center; z-index: 10; }
+.stat-pill { font-size: 11px; color: var(--text3); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; background: var(--bg2); }
 
-/* ── ANIMATIONS ── */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-.spinner {
-  width: 16px; height: 16px;
-  border: 2px solid rgba(26,22,16,0.3);
-  border-top-color: #1a1610;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(26,22,16,0.3); border-top-color: #1a1610; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── LOADING ── */
-#loadingScreen {
-  position: fixed; inset: 0;
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  transition: opacity 0.4s;
-}
-.loading-logo {
-  font-family: 'Playfair Display', serif;
-  font-size: 28px;
-  color: var(--gold);
-  animation: float 2s ease-in-out infinite;
-}
+#loadingScreen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; transition: opacity 0.4s; }
+.loading-logo { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--gold); animation: float 2s ease-in-out infinite; }
 
-/* ── AMÉLIORATION 5 : Transition de bienvenue ── */
-#welcomeOverlay {
-  position: fixed; inset: 0;
-  background: var(--bg);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  z-index: 2000;
-  gap: 16px;
-  opacity: 0;
-  transition: opacity 0.5s;
-}
-.welcome-icon {
-  font-size: 40px;
-  animation: float 2s ease-in-out infinite;
-}
-.welcome-text {
-  font-family: 'Playfair Display', serif;
-  font-size: 28px;
-  color: var(--gold);
-  text-align: center;
-}
-.welcome-sub {
-  font-size: 14px;
-  color: var(--text2);
-  text-align: center;
-}
-.welcome-dots {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-.welcome-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--gold);
-  opacity: 0.3;
-  animation: dotPulse 1.2s ease-in-out infinite;
-}
+#welcomeOverlay { position: fixed; inset: 0; background: var(--bg); display: none; align-items: center; justify-content: center; flex-direction: column; z-index: 2000; gap: 16px; opacity: 0; transition: opacity 0.5s; }
+.welcome-icon { font-size: 40px; animation: float 2s ease-in-out infinite; }
+.welcome-text { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--gold); text-align: center; }
+.welcome-sub { font-size: 14px; color: var(--text2); text-align: center; }
+.welcome-dots { display: flex; gap: 6px; margin-top: 8px; }
+.welcome-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); opacity: 0.3; animation: dotPulse 1.2s ease-in-out infinite; }
 .welcome-dot:nth-child(2) { animation-delay: 0.2s; }
 .welcome-dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes dotPulse {
-  0%, 100% { opacity: 0.2; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.3); }
-}
+@keyframes dotPulse { 0%, 100% { opacity: 0.2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } }
 
-/* ── CONFIG BANNER ── */
-.config-banner {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  background: #7c3a1a;
-  border-bottom: 1px solid #c96a3a;
-  color: #f5c090;
-  font-size: 12.5px;
-  padding: 10px 20px;
-  text-align: center;
-  z-index: 2000;
-  display: none;
-}
+.config-banner { position: fixed; top: 0; left: 0; right: 0; background: #7c3a1a; border-bottom: 1px solid #c96a3a; color: #f5c090; font-size: 12px; padding: 10px 20px; text-align: center; z-index: 2000; display: none; }
 .config-banner a { color: #e8c96a; }
 </style>
 </head>
@@ -527,8 +127,7 @@ header {
 
 <!-- CONFIG BANNER -->
 <div class="config-banner" id="configBanner">
-  ⚠️ Configurez Supabase : remplacez <code>VOTRE_URL</code> et <code>VOTRE_ANON_KEY</code> dans le code.
-  <a href="#" onclick="document.getElementById('setupModal').style.display='flex'"> → Guide rapide</a>
+  ⚠️ Supabase non configuré — l'app fonctionne en mode local/démo.
 </div>
 
 <!-- LOADING -->
@@ -536,7 +135,7 @@ header {
   <div class="loading-logo">✦ Ancestra</div>
 </div>
 
-<!-- AMÉLIORATION 5 : Overlay de bienvenue -->
+<!-- WELCOME OVERLAY -->
 <div id="welcomeOverlay">
   <div class="welcome-icon">✦</div>
   <div class="welcome-text" id="welcomeText">Bienvenue !</div>
@@ -550,43 +149,6 @@ header {
 
 <!-- BG CANVAS -->
 <canvas class="bg-canvas" id="bgCanvas"></canvas>
-
-<!-- SETUP MODAL -->
-<div id="setupModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:3000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);max-width:520px;width:100%;padding:28px">
-    <h2 style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:6px;color:var(--gold)">Configuration Supabase</h2>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.7">Supabase est <strong style="color:var(--text)">gratuit</strong> et permet la sync multi-appareils. Suivez ces étapes :</p>
-    <div style="display:flex;flex-direction:column;gap:14px;font-size:13px;color:var(--text2)">
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="background:var(--gold);color:#1a1610;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">1</div>
-        <div>Allez sur <a href="https://supabase.com" target="_blank" style="color:var(--gold)">supabase.com</a> → créez un compte gratuit → <strong style="color:var(--text)">New Project</strong></div>
-      </div>
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="background:var(--gold);color:#1a1610;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">2</div>
-        <div>Dans <strong style="color:var(--text)">Project Settings → API</strong>, copiez l'URL et l'<code style="background:var(--bg3);padding:1px 6px;border-radius:4px">anon public key</code></div>
-      </div>
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="background:var(--gold);color:#1a1610;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">3</div>
-        <div>Dans <strong style="color:var(--text)">SQL Editor</strong>, exécutez ce script pour créer la table :</div>
-      </div>
-      <pre style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;overflow-x:auto;color:var(--text2);line-height:1.6">CREATE TABLE family_trees (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES auth.users NOT NULL,
-  data jsonb NOT NULL,
-  updated_at timestamptz DEFAULT now()
-);
-ALTER TABLE family_trees ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users own their tree" ON family_trees
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);</pre>
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="background:var(--gold);color:#1a1610;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">4</div>
-        <div>Dans <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">index.html</code> <strong>ET</strong> <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">app.html</code>, remplacez <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">VOTRE_URL</code> et <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">VOTRE_ANON_KEY</code> en haut du JS</div>
-      </div>
-    </div>
-    <button onclick="document.getElementById('setupModal').style.display='none'" style="margin-top:20px;padding:10px 20px;background:var(--gold);border:none;border-radius:var(--radius);color:#1a1610;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;font-size:13px">Compris !</button>
-  </div>
-</div>
 
 <!-- PAGE -->
 <div class="page">
@@ -609,19 +171,21 @@ CREATE POLICY "Users own their tree" ON family_trees
   <div class="center">
     <div class="hero-eyebrow">Votre histoire familiale</div>
     <h1 class="hero-title">Remontez le fil<br>de vos <em>ancêtres</em></h1>
-    <p class="hero-sub">Construisez votre arbre généalogique, retrouvez vos racines et partagez votre histoire. Accessible depuis tous vos appareils.</p>
+    <p class="hero-sub">Construisez votre arbre généalogique, retrouvez vos racines et partagez votre histoire.</p>
 
     <!-- AUTH CARD -->
     <div class="auth-card">
       <div class="auth-tabs">
-        <button class="auth-tab active" onclick="switchAuthTab('login',this)">Se connecter</button>
-        <button class="auth-tab" onclick="switchAuthTab('register',this)">Créer un compte</button>
+        <button class="auth-tab active" onclick="switchTab('login', this)">Se connecter</button>
+        <button class="auth-tab" onclick="switchTab('register', this)">Créer un compte</button>
       </div>
-      <div class="auth-body">
-        <div id="authError" class="auth-error"></div>
-        <div id="authSuccess" class="auth-success"></div>
 
-        <!-- LOGIN -->
+      <div class="auth-body">
+        <!-- Messages -->
+        <div id="authError" class="auth-msg auth-error"></div>
+        <div id="authSuccess" class="auth-msg auth-success"></div>
+
+        <!-- LOGIN FORM -->
         <div id="loginForm">
           <div class="form-group">
             <label>Email</label>
@@ -629,43 +193,40 @@ CREATE POLICY "Users own their tree" ON family_trees
           </div>
           <div class="form-group">
             <label>Mot de passe</label>
-            <!-- AMÉLIORATION 1 : bouton œil -->
             <div class="input-wrapper">
               <input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-              <button class="eye-btn" type="button" onclick="toggleEye('loginPass', this)" tabindex="-1" title="Voir le mot de passe">
-                <svg id="eyeIcon-loginPass" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <button class="eye-btn" type="button" onclick="toggleEye('loginPass',this)" tabindex="-1">
+                <svg id="eye-loginPass" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
           </div>
           <button class="btn-auth" id="loginBtn" onclick="doLogin()">
-            <span>Accéder à mon arbre</span>
+            <span id="loginLabel">Accéder à mon arbre</span>
           </button>
-          <div style="text-align:center;margin-top:12px">
-            <span style="font-size:12px;color:var(--text3);cursor:pointer" onclick="doReset()">Mot de passe oublié ?</span>
+          <div class="auth-footer">
+            <span onclick="doReset()">Mot de passe oublié ?</span>
           </div>
         </div>
 
-        <!-- REGISTER -->
+        <!-- REGISTER FORM -->
         <div id="registerForm" style="display:none">
           <div class="form-group">
-            <label>Prénom & Nom</label>
-            <input type="text" id="regName" placeholder="Marie Curie">
+            <label>Prénom &amp; Nom</label>
+            <input type="text" id="regName" placeholder="Marie Curie" onkeydown="if(event.key==='Enter')doRegister()">
           </div>
           <div class="form-group">
             <label>Email</label>
-            <!-- AMÉLIORATION 2 : validation email en temps réel -->
-            <input type="email" id="regEmail" placeholder="votre@email.com" oninput="validateEmail(this)">
+            <input type="email" id="regEmail" placeholder="votre@email.com" oninput="validateEmail(this)" onkeydown="if(event.key==='Enter')doRegister()">
             <div class="input-hint" id="emailHint"></div>
           </div>
           <div class="form-group">
             <label>Mot de passe</label>
-            <!-- AMÉLIORATION 1 : bouton œil + AMÉLIORATION 2 : force du MDP -->
             <div class="input-wrapper">
               <input type="password" id="regPass" placeholder="8 caractères minimum"
                      oninput="checkStrength(this.value)"
                      onkeydown="if(event.key==='Enter')doRegister()">
-              <button class="eye-btn" type="button" onclick="toggleEye('regPass', this)" tabindex="-1" title="Voir le mot de passe">
-                <svg id="eyeIcon-regPass" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <button class="eye-btn" type="button" onclick="toggleEye('regPass',this)" tabindex="-1">
+                <svg id="eye-regPass" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
             <div class="password-strength" id="strengthBars">
@@ -673,15 +234,27 @@ CREATE POLICY "Users own their tree" ON family_trees
               <div class="strength-bar"></div>
               <div class="strength-bar"></div>
             </div>
-            <div class="strength-label" id="strengthLabel" style="color:var(--text3)"></div>
+            <div class="strength-label" id="strengthLabel"></div>
           </div>
           <button class="btn-auth" id="registerBtn" onclick="doRegister()">
-            <span>Créer mon compte</span>
+            <span id="registerLabel">Créer mon compte</span>
           </button>
         </div>
 
+        <!-- GOOGLE -->
+        <div class="auth-divider">ou</div>
+        <button class="btn-google" id="googleBtn" onclick="doGoogle()">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M15.68 8.18c0-.57-.05-1.11-.14-1.64H8v3.1h4.3a3.67 3.67 0 01-1.6 2.41v2h2.6c1.52-1.4 2.38-3.46 2.38-5.87z" fill="#4285F4"/><path d="M8 16c2.16 0 3.97-.72 5.3-1.94l-2.6-2a5.02 5.02 0 01-2.7.75 5 5 0 01-4.7-3.44H.62v2.06A8 8 0 008 16z" fill="#34A853"/><path d="M3.3 9.37A5.06 5.06 0 013.04 8c0-.47.08-.93.26-1.37V4.57H.62A8 8 0 000 8c0 1.29.31 2.51.62 3.43l2.68-2.06z" fill="#FBBC05"/><path d="M8 3.18c1.22 0 2.31.42 3.17 1.24l2.38-2.38A8 8 0 00.62 4.57L3.3 6.63A5 5 0 018 3.18z" fill="#EA4335"/></svg>
+          Continuer avec Google
+        </button>
+        <div class="google-fallback" id="googleFallback">
+          La connexion Google ne fonctionne pas ? <a onclick="switchTab('register', document.querySelectorAll('.auth-tab')[1])">Créez un compte par email</a>
+        </div>
 
-
+        <!-- DEMO -->
+        <div style="margin-top:12px;text-align:center">
+          <span style="font-size:11px;color:var(--text3);cursor:pointer" onclick="demoLogin()">Essayer sans compte (mode démo)</span>
+        </div>
       </div>
     </div>
   </div>
@@ -694,7 +267,7 @@ CREATE POLICY "Users own their tree" ON family_trees
     <div class="cl-dot new"></div>
     <div class="cl-content">
       <div class="cl-version">v1.0 · Lancement</div>
-      <div class="cl-desc">Arbre interactif, recherche, stats, sync cloud multi-appareils</div>
+      <div class="cl-desc">Arbre interactif, recherche, stats, sync cloud</div>
       <div class="cl-date">Mai 2026</div>
     </div>
   </div>
@@ -706,14 +279,6 @@ CREATE POLICY "Users own their tree" ON family_trees
       <div class="cl-date">Prochainement</div>
     </div>
   </div>
-  <div class="changelog-item">
-    <div class="cl-dot"></div>
-    <div class="cl-content">
-      <div class="cl-version">À venir · v1.2</div>
-      <div class="cl-desc">Carte des origines, IA de recherche d'ancêtres</div>
-      <div class="cl-date">Été 2026</div>
-    </div>
-  </div>
 </div>
 
 <div class="bottom-right">
@@ -722,27 +287,23 @@ CREATE POLICY "Users own their tree" ON family_trees
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
-//  ⚙️  CONFIGURATION — REMPLACEZ CES DEUX LIGNES
-// ═══════════════════════════════════════════════════════
-const SUPABASE_URL = 'https://jhcuqfyxtkpslyddmarz.supabase.co';
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+const SUPABASE_URL     = 'https://jhcuqfyxtkpslyddmarz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpoY3VxZnl4dGtwc2x5ZGRtYXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTU0NTcsImV4cCI6MjA5MzM3MTQ1N30.OWvwR9BWtaPHu5ImOSK6H4nqx7wJ9ufUa0G4lDCfTrU';
-// ═══════════════════════════════════════════════════════
 
 let sbClient = null;
 let configured = false;
 
+// ═══════════════════════════════════════════
+// SUPABASE INIT
+// ═══════════════════════════════════════════
 function initSupabase() {
-  if (SUPABASE_URL === 'VOTRE_URL' || SUPABASE_ANON_KEY === 'VOTRE_ANON_KEY') {
+  if (!SUPABASE_URL || SUPABASE_URL === 'VOTRE_URL' ||
+      !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'VOTRE_ANON_KEY' ||
+      !SUPABASE_ANON_KEY.startsWith('eyJ')) {
     document.getElementById('configBanner').style.display = 'block';
-    document.getElementById('configBanner').style.top = '0';
-    document.querySelector('.page').style.paddingTop = '40px';
-    configured = false;
-    return false;
-  }
-  // La vraie anon key Supabase commence toujours par "eyJ"
-  if (!SUPABASE_ANON_KEY.startsWith('eyJ')) {
-    showError('❌ Clé Supabase invalide. Dans ton dashboard Supabase → Project Settings → API, copie la clé "anon public" (elle commence par eyJ...)');
     configured = false;
     return false;
   }
@@ -751,12 +312,15 @@ function initSupabase() {
     configured = true;
     return true;
   } catch(e) {
-    showError('Erreur de configuration Supabase : ' + e.message);
+    console.error('Supabase init error:', e);
+    configured = false;
     return false;
   }
 }
 
-// ── BACKGROUND CANVAS ──
+// ═══════════════════════════════════════════
+// BACKGROUND CANVAS
+// ═══════════════════════════════════════════
 const bgCanvas = document.getElementById('bgCanvas');
 const bgCtx = bgCanvas.getContext('2d');
 let nodes = [];
@@ -764,56 +328,25 @@ let nodes = [];
 function initBG() {
   bgCanvas.width = window.innerWidth;
   bgCanvas.height = window.innerHeight;
-  nodes = Array.from({length: 28}, () => ({
-    x: Math.random() * bgCanvas.width,
-    y: Math.random() * bgCanvas.height,
-    vx: (Math.random() - 0.5) * 0.3,
-    vy: (Math.random() - 0.5) * 0.3,
-    r: Math.random() * 2 + 1
+  nodes = Array.from({length:24}, () => ({
+    x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height,
+    vx: (Math.random()-0.5)*0.3, vy: (Math.random()-0.5)*0.3,
+    r: Math.random()*2+1
   }));
 }
-
 function drawBG() {
-  const w = bgCanvas.width, h = bgCanvas.height;
-  bgCtx.clearRect(0, 0, w, h);
-  for (const n of nodes) {
-    n.x += n.vx; n.y += n.vy;
-    if (n.x < 0 || n.x > w) n.vx *= -1;
-    if (n.y < 0 || n.y > h) n.vy *= -1;
-  }
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i+1; j < nodes.length; j++) {
-      const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
-      const d = Math.sqrt(dx*dx+dy*dy);
-      if (d < 160) {
-        bgCtx.beginPath();
-        bgCtx.moveTo(nodes[i].x, nodes[i].y);
-        bgCtx.lineTo(nodes[j].x, nodes[j].y);
-        bgCtx.strokeStyle = `rgba(201,168,76,${0.04*(1-d/160)})`;
-        bgCtx.lineWidth = 1;
-        bgCtx.stroke();
-      }
-    }
-  }
-  for (const n of nodes) {
-    bgCtx.beginPath();
-    bgCtx.arc(n.x, n.y, n.r, 0, Math.PI*2);
-    bgCtx.fillStyle = 'rgba(201,168,76,0.15)';
-    bgCtx.fill();
-  }
+  const w=bgCanvas.width, h=bgCanvas.height;
+  bgCtx.clearRect(0,0,w,h);
+  for(const n of nodes){n.x+=n.vx;n.y+=n.vy;if(n.x<0||n.x>w)n.vx*=-1;if(n.y<0||n.y>h)n.vy*=-1;}
+  for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++){const dx=nodes[i].x-nodes[j].x,dy=nodes[i].y-nodes[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<160){bgCtx.beginPath();bgCtx.moveTo(nodes[i].x,nodes[i].y);bgCtx.lineTo(nodes[j].x,nodes[j].y);bgCtx.strokeStyle=`rgba(201,168,76,${0.04*(1-d/160)})`;bgCtx.lineWidth=1;bgCtx.stroke();}}
+  for(const n of nodes){bgCtx.beginPath();bgCtx.arc(n.x,n.y,n.r,0,Math.PI*2);bgCtx.fillStyle='rgba(201,168,76,0.15)';bgCtx.fill();}
   requestAnimationFrame(drawBG);
 }
 window.addEventListener('resize', initBG);
 
-// ── AUTH UI ──
-function switchAuthTab(tab, btn) {
-  document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
-  document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
-  clearMessages();
-}
-
+// ═══════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════
 function showError(msg) {
   const el = document.getElementById('authError');
   el.textContent = msg;
@@ -832,192 +365,146 @@ function clearMessages() {
   document.getElementById('googleFallback').style.display = 'none';
 }
 
-function setLoading(btnId, loading, label) {
+function setLoading(btnId, labelId, loading, labelText) {
   const btn = document.getElementById(btnId);
+  const lbl = document.getElementById(labelId);
+  if (!btn) return;
+  btn.disabled = loading;
   if (loading) {
-    btn.disabled = true;
     btn.innerHTML = '<div class="spinner"></div>';
   } else {
-    btn.disabled = false;
-    btn.innerHTML = `<span>${label}</span>`;
+    btn.innerHTML = `<span id="${labelId}">${labelText}</span>`;
   }
 }
 
-// ── AMÉLIORATION 1 : Toggle mot de passe ──
+function switchTab(tab, btn) {
+  document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('loginForm').style.display    = tab === 'login'    ? 'block' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+  clearMessages();
+}
+
 function toggleEye(inputId, btn) {
   const input = document.getElementById(inputId);
-  const icon = document.getElementById('eyeIcon-' + inputId);
-  const isHidden = input.type === 'password';
-  input.type = isHidden ? 'text' : 'password';
-  // Icône œil ouvert / fermé
-  icon.innerHTML = isHidden
+  const icon  = document.getElementById('eye-' + inputId);
+  const hide  = input.type === 'password';
+  input.type  = hide ? 'text' : 'password';
+  if (icon) icon.innerHTML = hide
     ? `<path d="M17.94 12c0 0-3.18 5-5.94 5S6.06 12 6.06 12 9.24 7 12 7s5.94 5 5.94 5z"/><circle cx="12" cy="12" r="3"/><line x1="3" y1="3" x2="21" y2="21"/>`
     : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
 }
 
-// ── AMÉLIORATION 2 : Validation email ──
 function validateEmail(input) {
-  const val = input.value;
+  const val  = input.value;
   const hint = document.getElementById('emailHint');
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (val === '') {
-    input.classList.remove('input-valid', 'input-error');
-    hint.textContent = '';
-    hint.className = 'input-hint';
-    return;
-  }
-  if (re.test(val)) {
-    input.classList.remove('input-error');
-    input.classList.add('input-valid');
-    hint.textContent = '✓ Email valide';
-    hint.className = 'input-hint hint-ok';
-  } else {
-    input.classList.remove('input-valid');
-    input.classList.add('input-error');
-    hint.textContent = 'Format invalide (ex: nom@domaine.fr)';
-    hint.className = 'input-hint hint-err';
-  }
+  const re   = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!val) { input.classList.remove('input-valid','input-error'); hint.textContent=''; hint.className='input-hint'; return; }
+  if (re.test(val)) { input.classList.remove('input-error'); input.classList.add('input-valid'); hint.textContent='✓ Email valide'; hint.className='input-hint hint-ok'; }
+  else { input.classList.remove('input-valid'); input.classList.add('input-error'); hint.textContent='Format invalide'; hint.className='input-hint hint-err'; }
 }
 
-// ── AMÉLIORATION 2 : Force du mot de passe ──
 function checkStrength(val) {
-  const bars = document.getElementById('strengthBars');
+  const bars  = document.getElementById('strengthBars');
   const label = document.getElementById('strengthLabel');
   bars.className = 'password-strength';
-  if (!val) { label.textContent = ''; return; }
+  if (!val) { label.textContent=''; return; }
   let score = 0;
   if (val.length >= 8) score++;
   if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
   if (/[0-9]/.test(val) || /[^A-Za-z0-9]/.test(val)) score++;
-  if (score === 1) {
-    bars.classList.add('strength-weak');
-    label.textContent = 'Faible';
-    label.style.color = '#c97a6a';
-  } else if (score === 2) {
-    bars.classList.add('strength-medium');
-    label.textContent = 'Moyen';
-    label.style.color = '#c9a84c';
-  } else {
-    bars.classList.add('strength-strong');
-    label.textContent = 'Fort ✓';
-    label.style.color = '#6ac97a';
-  }
+  if (score===1){bars.classList.add('strength-weak');label.textContent='Faible';label.style.color='#c97a6a';}
+  else if(score===2){bars.classList.add('strength-medium');label.textContent='Moyen';label.style.color='#c9a84c';}
+  else{bars.classList.add('strength-strong');label.textContent='Fort ✓';label.style.color='#6ac97a';}
 }
 
-// ── AMÉLIORATION 4 : Fallback Google ──
-function switchToEmail() {
-  document.getElementById('googleFallback').style.display = 'none';
-  // Bascule sur l'onglet inscription
-  const tabs = document.querySelectorAll('.auth-tab');
-  tabs.forEach(t => t.classList.remove('active'));
-  tabs[1].classList.add('active');
-  document.getElementById('loginForm').style.display = 'none';
-  document.getElementById('registerForm').style.display = 'block';
-}
-
-// ── AMÉLIORATION 5 : Transition de bienvenue ──
+// ═══════════════════════════════════════════
+// WELCOME & REDIRECT
+// ═══════════════════════════════════════════
 function showWelcome(name) {
   const overlay = document.getElementById('welcomeOverlay');
-  const text = document.getElementById('welcomeText');
-  const firstName = name ? name.split(' ')[0] : '';
-  text.textContent = firstName ? `Bienvenue, ${firstName} !` : 'Bienvenue !';
+  const text    = document.getElementById('welcomeText');
+  const first   = name ? name.split(' ')[0] : '';
+  text.textContent = first ? `Bienvenue, ${first} !` : 'Bienvenue !';
   overlay.style.display = 'flex';
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => { overlay.style.opacity = '1'; });
-  });
-  const onboardingDone = !!localStorage.getItem('ancestra_onboarding_done');
-  setTimeout(() => { window.location.href = onboardingDone ? 'app.html' : 'onboarding.html'; }, 1800);
+  requestAnimationFrame(() => requestAnimationFrame(() => { overlay.style.opacity = '1'; }));
+  const done = !!localStorage.getItem('ancestra_onboarding_done');
+  setTimeout(() => { window.location.href = done ? 'app.html' : 'onboarding.html'; }, 1600);
 }
 
-// ── DEMO MODE ──
+// ═══════════════════════════════════════════
+// AUTH ACTIONS
+// ═══════════════════════════════════════════
 function demoLogin() {
   localStorage.setItem('ancestra_demo', '1');
   localStorage.setItem('ancestra_user', JSON.stringify({name:'Utilisateur démo', email:'demo@ancestra.app'}));
   showWelcome('Utilisateur démo');
 }
 
-// ── LOGIN ──
 async function doLogin() {
-  if (!configured) { demoLogin(); return; }
   clearMessages();
+  if (!configured) { demoLogin(); return; }
   const email = document.getElementById('loginEmail').value.trim();
-  const pass = document.getElementById('loginPass').value;
+  const pass  = document.getElementById('loginPass').value;
   if (!email || !pass) { showError('Veuillez remplir tous les champs.'); return; }
-  setLoading('loginBtn', true, '');
-  const { data, error } = await sbClient.auth.signInWithPassword({ email, password: pass });
-  setLoading('loginBtn', false, 'Accéder à mon arbre');
-  if (error) {
-    showError(error.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : error.message);
-    return;
-  }
-  const name = data.user?.user_metadata?.full_name || data.user?.email || '';
-  showWelcome(name);
-}
-
-// ── REGISTER ──
-async function doRegister() {
-  clearMessages();
-
-  // Ré-initialiser Supabase si nécessaire (ex: timeout au chargement)
-  if (!configured) initSupabase();
-
-  // Si toujours pas configuré → mode démo
-  if (!configured) { demoLogin(); return; }
-
-  const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
-  const pass = document.getElementById('regPass').value;
-
-  if (!name) { showError('Veuillez entrer votre prénom et nom.'); return; }
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Adresse email invalide.'); return; }
-  if (!pass) { showError('Veuillez entrer un mot de passe.'); return; }
-  if (pass.length < 8) { showError('Le mot de passe doit contenir au moins 8 caractères.'); return; }
-
-  setLoading('registerBtn', true, '');
-
+  setLoading('loginBtn', 'loginLabel', true, '');
   try {
-    const { data, error } = await sbClient.auth.signUp({
-      email,
-      password: pass,
-      options: { data: { full_name: name } }
-    });
-
-    setLoading('registerBtn', false, 'Créer mon compte');
-
+    const { data, error } = await sbClient.auth.signInWithPassword({ email, password: pass });
+    setLoading('loginBtn', 'loginLabel', false, 'Accéder à mon arbre');
     if (error) {
-      const msg = error.message || '';
-      if (msg.includes('already registered') || msg.includes('User already registered')) {
-        showError('Un compte existe déjà avec cet email. Essayez de vous connecter.');
-      } else if (msg.includes('Password should be')) {
-        showError('Mot de passe trop faible. Utilisez au moins 8 caractères avec lettres et chiffres.');
-      } else if (msg.includes('Invalid email')) {
-        showError('Adresse email invalide.');
-      } else if (msg.includes('signup is disabled') || msg.includes('Signups not allowed')) {
-        showError('Les inscriptions sont désactivées côté Supabase.');
-      } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
-        showError('Trop de tentatives. Attendez quelques minutes.');
-      } else {
-        showError('Erreur inscription : ' + msg);
-      }
+      const m = error.message || '';
+      if (m.includes('Invalid login credentials')) showError('Email ou mot de passe incorrect.');
+      else if (m.includes('Email not confirmed')) showError('Confirmez votre email avant de vous connecter.');
+      else showError('Erreur connexion : ' + m);
       return;
     }
+    showWelcome(data.user?.user_metadata?.full_name || data.user?.email || '');
+  } catch(e) {
+    setLoading('loginBtn', 'loginLabel', false, 'Accéder à mon arbre');
+    showError('Impossible de joindre le serveur.');
+    console.error(e);
+  }
+}
 
+async function doRegister() {
+  clearMessages();
+  if (!configured) { demoLogin(); return; }
+  const name  = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass  = document.getElementById('regPass').value;
+  if (!name)  { showError('Veuillez entrer votre prénom et nom.'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Adresse email invalide.'); return; }
+  if (!pass)  { showError('Veuillez entrer un mot de passe.'); return; }
+  if (pass.length < 8) { showError('Le mot de passe doit contenir au moins 8 caractères.'); return; }
+  setLoading('registerBtn', 'registerLabel', true, '');
+  try {
+    const { data, error } = await sbClient.auth.signUp({
+      email, password: pass,
+      options: { data: { full_name: name } }
+    });
+    setLoading('registerBtn', 'registerLabel', false, 'Créer mon compte');
+    if (error) {
+      const m = error.message || '';
+      if (m.includes('already registered') || m.includes('User already registered')) showError('Un compte existe déjà avec cet email. Connectez-vous.');
+      else if (m.includes('Password should be')) showError('Mot de passe trop faible (8 caractères minimum, lettres + chiffres).');
+      else if (m.includes('signup is disabled') || m.includes('Signups not allowed')) showError('Les inscriptions sont désactivées.');
+      else if (m.includes('rate limit') || m.includes('too many')) showError('Trop de tentatives. Attendez quelques minutes.');
+      else showError('Erreur inscription : ' + m);
+      return;
+    }
     if (data.session) {
       // Confirmation email désactivée → connexion directe
       showWelcome(name);
     } else {
-      // Confirmation email requise
       showSuccess('✓ Compte créé ! Vérifiez votre boîte email pour confirmer, puis connectez-vous.');
     }
-
-  } catch (e) {
-    setLoading('registerBtn', false, 'Créer mon compte');
+  } catch(e) {
+    setLoading('registerBtn', 'registerLabel', false, 'Créer mon compte');
     showError('Impossible de joindre le serveur. Vérifiez votre connexion.');
-    console.error('Register error:', e);
+    console.error(e);
   }
 }
 
-// ── GOOGLE ──
 async function doGoogle() {
   if (!configured) { demoLogin(); return; }
   const btn = document.getElementById('googleBtn');
@@ -1026,10 +513,9 @@ async function doGoogle() {
   try {
     const { error } = await sbClient.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/app.html' }
+      options: { redirectTo: window.location.origin + '/onboarding.html' }
     });
     if (error) throw error;
-    // Si on arrive ici sans redirection (popup bloquée, domaine non autorisé)
     setTimeout(() => {
       btn.disabled = false;
       btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16"><path d="M15.68 8.18c0-.57-.05-1.11-.14-1.64H8v3.1h4.3a3.67 3.67 0 01-1.6 2.41v2h2.6c1.52-1.4 2.38-3.46 2.38-5.87z" fill="#4285F4"/><path d="M8 16c2.16 0 3.97-.72 5.3-1.94l-2.6-2a5.02 5.02 0 01-2.7.75 5 5 0 01-4.7-3.44H.62v2.06A8 8 0 008 16z" fill="#34A853"/><path d="M3.3 9.37A5.06 5.06 0 013.04 8c0-.47.08-.93.26-1.37V4.57H.62A8 8 0 000 8c0 1.29.31 2.51.62 3.43l2.68-2.06z" fill="#FBBC05"/><path d="M8 3.18c1.22 0 2.31.42 3.17 1.24l2.38-2.38A8 8 0 00.62 4.57L3.3 6.63A5 5 0 018 3.18z" fill="#EA4335"/></svg> Continuer avec Google`;
@@ -1039,47 +525,57 @@ async function doGoogle() {
     btn.disabled = false;
     btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16"><path d="M15.68 8.18c0-.57-.05-1.11-.14-1.64H8v3.1h4.3a3.67 3.67 0 01-1.6 2.41v2h2.6c1.52-1.4 2.38-3.46 2.38-5.87z" fill="#4285F4"/><path d="M8 16c2.16 0 3.97-.72 5.3-1.94l-2.6-2a5.02 5.02 0 01-2.7.75 5 5 0 01-4.7-3.44H.62v2.06A8 8 0 008 16z" fill="#34A853"/><path d="M3.3 9.37A5.06 5.06 0 013.04 8c0-.47.08-.93.26-1.37V4.57H.62A8 8 0 000 8c0 1.29.31 2.51.62 3.43l2.68-2.06z" fill="#FBBC05"/><path d="M8 3.18c1.22 0 2.31.42 3.17 1.24l2.38-2.38A8 8 0 00.62 4.57L3.3 6.63A5 5 0 018 3.18z" fill="#EA4335"/></svg> Continuer avec Google`;
     document.getElementById('googleFallback').style.display = 'block';
-    showError('Connexion Google impossible : ' + (e.message || 'vérifiez que les popups sont autorisées.'));
+    showError('Connexion Google impossible. Essayez avec email.');
   }
 }
 
-// ── RESET ──
 async function doReset() {
   if (!configured) { showError('Configurez Supabase pour utiliser cette fonctionnalité.'); return; }
   const email = document.getElementById('loginEmail').value.trim();
   if (!email) { showError('Entrez votre email pour réinitialiser votre mot de passe.'); return; }
-  await sbClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/app.html' });
-  showSuccess('Email de réinitialisation envoyé !');
+  try {
+    await sbClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/index.html' });
+    showSuccess('Email de réinitialisation envoyé !');
+  } catch(e) { showError('Erreur : ' + e.message); }
 }
 
-// ── HIDE LOADING ──
+// ═══════════════════════════════════════════
+// LOADING SCREEN
+// ═══════════════════════════════════════════
 function hideLoading() {
   const ls = document.getElementById('loadingScreen');
   ls.style.opacity = '0';
   setTimeout(() => ls.style.display = 'none', 400);
 }
 
-// ── INIT ──
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
 async function init() {
   initBG();
   drawBG();
-  // Toujours init Supabase en premier
+
+  // Init Supabase immédiatement
   initSupabase();
-  setTimeout(hideLoading, 3000);
-  if (!configured) { hideLoading(); return; }
+
+  if (!configured) {
+    hideLoading();
+    return;
+  }
+
+  // Vérifier si session active
   try {
-    const sessionPromise = sbClient.auth.getSession();
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
-    const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+    const to = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000));
+    const { data: { session } } = await Promise.race([sbClient.auth.getSession(), to]);
     if (session) {
-      const name = session.user?.user_metadata?.full_name || session.user?.email || '';
-      showWelcome(name);
+      showWelcome(session.user?.user_metadata?.full_name || session.user?.email || '');
       return;
     }
   } catch(e) {
-    console.warn('Supabase session check error:', e.message);
-    // Ne pas bloquer — l'utilisateur peut quand même s'inscrire/connecter
+    // Timeout ou erreur réseau — on affiche quand même le formulaire
+    console.warn('Session check:', e.message);
   }
+
   hideLoading();
 }
 
