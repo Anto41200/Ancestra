@@ -739,8 +739,11 @@ async function finishOnboarding() {
 
   const DB = buildDB();
 
-  // Sauvegarder en localStorage
+  // Sauvegarder en localStorage (clé générique ET clé user si connecté)
   localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  if (currentUser) {
+    localStorage.setItem(STORE_KEY + '_' + currentUser.id, JSON.stringify(DB));
+  }
   localStorage.setItem('ancestra_onboarding_done', '1');
 
   // Sauvegarder en cloud si connecté
