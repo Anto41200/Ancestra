@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ancestra — Généalogie moderne</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── CONFIG — remplacez ces deux valeurs par les vôtres Supabase ── */
+/* Voir README en bas de page */
+
+:root {
+  --bg: #0c0b09;
+  --bg2: #141310;
+  --bg3: #1e1d1a;
+  --bg4: #282724;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #f2ede4;
+  --text2: #9a968f;
+  --text3: #4e4c48;
+  --gold: #c9a84c;
+  --gold2: #e8c96a;
+  --gold-dim: rgba(201,168,76,0.15);
+  --gold-glow: rgba(201,168,76,0.08);
+  --radius: 10px;
+  --radius-lg: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ── BACKGROUND ── */
+.bg-canvas {
+  position: fixed; inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── LAYOUT ── */
+.page {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 40px;
+}
+
+.logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.03em;
+}
+.logo-mark {
+  width: 32px; height: 32px;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-dim);
+}
+
+.header-badge {
+  font-size: 11px;
+  padding: 4px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  color: var(--text2);
+}
+
+/* ── CENTER ── */
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0;
+  padding: 20px;
+}
+
+.hero-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeUp 0.6s ease both;
+}
+.hero-eyebrow::before, .hero-eyebrow::after {
+  content: '';
+  width: 30px; height: 1px;
+  background: var(--gold);
+  opacity: 0.4;
+}
+
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(36px, 5vw, 64px);
+  line-height: 1.1;
+  text-align: center;
+  margin-bottom: 16px;
+  animation: fadeUp 0.6s 0.1s ease both;
+}
+.hero-title em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: 15px;
+  color: var(--text2);
+  text-align: center;
+  max-width: 420px;
+  line-height: 1.7;
+  margin-bottom: 36px;
+  font-weight: 300;
+  animation: fadeUp 0.6s 0.2s ease both;
+}
+
+/* ── AUTH CARD ── */
+.auth-card {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+  animation: fadeUp 0.6s 0.3s ease both;
+  box-shadow: 0 0 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.05);
+}
+
+.auth-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.auth-tab {
+  flex: 1;
+  padding: 14px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+.auth-tab.active {
+  color: var(--text);
+  background: var(--bg3);
+}
+.auth-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 2px;
+  background: var(--gold);
+}
+
+.auth-body { padding: 24px; }
+
+.form-group {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.form-group label {
+  font-size: 11.5px;
+  color: var(--text3);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.form-group input {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.form-group input:focus { border-color: var(--gold); }
+.form-group input::placeholder { color: var(--text3); }
+
+.auth-error {
+  font-size: 12px;
+  color: #c97a6a;
+  background: rgba(201,106,106,0.08);
+  border: 1px solid rgba(201,106,106,0.2);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  display: none;
+}
+.auth-success {
+  font-size: 12px;
+  color: #6ac97a;
+  background: rgba(106,201,122,0.08);
+  border: 1px solid rgba(106,201,122,0.2);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  display: none;
+}
+
+.btn-auth {
+  width: 100%;
+  padding: 12px;
+  background: var(--gold);
+  color: #1a1610;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.btn-auth:hover { background: var(--gold2); }
+.btn-auth:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  font-size: 11px;
+  color: var(--text3);
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.btn-google {
+  width: 100%;
+  padding: 11px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+.btn-google:hover { border-color: var(--border2); background: var(--bg3); color: var(--text); }
+
+/* ── BOTTOM LEFT CHANGELOG ── */
+.changelog {
+  position: fixed;
+  bottom: 24px;
+  left: 32px;
+  max-width: 280px;
+  z-index: 10;
+  animation: fadeUp 0.6s 0.5s ease both;
+}
+
+.changelog-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.changelog-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.changelog-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.changelog-item:last-child { border: none; }
+
+.cl-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+  flex-shrink: 0;
+  margin-top: 5px;
+  opacity: 0.6;
+}
+.cl-dot.new { opacity: 1; box-shadow: 0 0 6px var(--gold); }
+
+.cl-content {}
+.cl-version { font-size: 10px; color: var(--gold); font-weight: 500; }
+.cl-desc { font-size: 11.5px; color: var(--text2); margin-top: 1px; line-height: 1.5; }
+.cl-date { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* ── BOTTOM RIGHT ── */
+.bottom-right {
+  position: fixed;
+  bottom: 24px;
+  right: 32px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  z-index: 10;
+}
+.stat-pill {
+  font-size: 11px;
+  color: var(--text3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  background: var(--bg2);
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ── SPINNER ── */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(26,22,16,0.3);
+  border-top-color: #1a1610;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── LOADING SCREEN ── */
+#loadingScreen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.4s;
+}
+.loading-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  color: var(--gold);
+  animation: float 2s ease-in-out infinite;
+}
+
+/* ── CONFIG BANNER ── */
+.config-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: #7c3a1a;
+  border-bottom: 1px solid #c96a3a;
+  color: #f5c090;
+  font-size: 12.5px;
+  padding: 10px 20px;
+  text-align: center;
+  z-index: 2000;
+  display: none;
+}
+.config-banner a { color: #e8c96a; }
+</style>
+</head>
+<body>
+
+<!-- CONFIG BANNER -->
+<div class="config-banner" id="configBanner">
+  ⚠️ Configurez Supabase : remplacez <code>VOTRE_URL</code> et <code>VOTRE_ANON_KEY</code> dans le code.
+  <a href="#" onclick="document.getElementById('setupModal').style.display='flex'"> → Guide rapide</a>
+</div>
+
+<!-- LOADING -->
+<div id="loadingScreen">
+  <div class="loading-logo">✦ Ancestra</div>
+</div>
+
+<!-- BG CANVAS -->
+<canvas class="bg-canvas" id="bgCanvas"></canvas>
+
+<!-- SETUP MODAL -->
+<div id="setupModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:3000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);max-width:520px;width:100%;padding:28px">
+    <h2 style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:6px;color:var(--gold)">Configuration Supabase</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.7">Supabase est <strong style="color:var(--text)">gratuit</strong> et permet la sync multi-appareils. Suivez ces étapes :</p>
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:13px;color:var(--text2)">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="background:var(--gold);color:#1a1610;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">1</div>
+        <div>Allez sur <a href="https://supabase.com" target="_blank" style="color:var(--gold)">supabase.com</a> → créez un compte gratuit → <strong style="color:var(--text)">New Project</strong></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="background:var(--gold);color:#1a1610;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">2</div>
+        <div>Dans <strong style="color:var(--text)">Project Settings → API</strong>, copiez l'URL et l'<code style="background:var(--bg3);padding:1px 6px;border-radius:4px">anon public key</code></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="background:var(--gold);color:#1a1610;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">3</div>
+        <div>Dans <strong style="color:var(--text)">SQL Editor</strong>, exécutez ce script pour créer la table :</div>
+      </div>
+      <pre style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;overflow-x:auto;color:var(--text2);line-height:1.6">CREATE TABLE family_trees (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users NOT NULL,
+  data jsonb NOT NULL,
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE family_trees ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users own their tree" ON family_trees
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);</pre>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="background:var(--gold);color:#1a1610;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px">4</div>
+        <div>Dans <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">index.html</code> <strong>ET</strong> <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">app.html</code>, remplacez <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">VOTRE_URL</code> et <code style="background:var(--bg3);padding:1px 6px;border-radius:4px">VOTRE_ANON_KEY</code> en haut du JS</div>
+      </div>
+    </div>
+    <button onclick="document.getElementById('setupModal').style.display='none'" style="margin-top:20px;padding:10px 20px;background:var(--gold);border:none;border-radius:var(--radius);color:#1a1610;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;font-size:13px">Compris !</button>
+  </div>
+</div>
+
+<!-- PAGE -->
+<div class="page">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="4" r="2.5" fill="#c9a84c"/>
+          <circle cx="4" cy="13" r="2.5" fill="#c9a84c"/>
+          <circle cx="14" cy="13" r="2.5" fill="#c9a84c"/>
+          <line x1="9" y1="6.5" x2="4" y2="10.5" stroke="#c9a84c" stroke-width="1.2"/>
+          <line x1="9" y1="6.5" x2="14" y2="10.5" stroke="#c9a84c" stroke-width="1.2"/>
+        </svg>
+      </div>
+      Ancestra
+    </div>
+    <div class="header-badge">v1.0 · Généalogie moderne</div>
+  </header>
+
+  <div class="center">
+    <div class="hero-eyebrow">Votre histoire familiale</div>
+    <h1 class="hero-title">Remontez le fil<br>de vos <em>ancêtres</em></h1>
+    <p class="hero-sub">Construisez votre arbre généalogique, retrouvez vos racines et partagez votre histoire. Accessible depuis tous vos appareils.</p>
+
+    <!-- AUTH CARD -->
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login',this)">Se connecter</button>
+        <button class="auth-tab" onclick="switchAuthTab('register',this)">Créer un compte</button>
+      </div>
+      <div class="auth-body">
+        <div id="authError" class="auth-error"></div>
+        <div id="authSuccess" class="auth-success"></div>
+
+        <!-- LOGIN -->
+        <div id="loginForm">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="votre@email.com" onkeydown="if(event.key==='Enter')doLogin()">
+          </div>
+          <div class="form-group">
+            <label>Mot de passe</label>
+            <input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+          </div>
+          <button class="btn-auth" id="loginBtn" onclick="doLogin()">
+            <span>Accéder à mon arbre</span>
+          </button>
+          <div style="text-align:center;margin-top:12px">
+            <span style="font-size:12px;color:var(--text3);cursor:pointer" onclick="doReset()">Mot de passe oublié ?</span>
+          </div>
+        </div>
+
+        <!-- REGISTER -->
+        <div id="registerForm" style="display:none">
+          <div class="form-group">
+            <label>Prénom & Nom</label>
+            <input type="text" id="regName" placeholder="Marie Curie">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="regEmail" placeholder="votre@email.com">
+          </div>
+          <div class="form-group">
+            <label>Mot de passe</label>
+            <input type="password" id="regPass" placeholder="8 caractères minimum" onkeydown="if(event.key==='Enter')doRegister()">
+          </div>
+          <button class="btn-auth" id="registerBtn" onclick="doRegister()">
+            <span>Créer mon compte</span>
+          </button>
+        </div>
+
+        <div class="auth-divider">ou</div>
+        <button class="btn-google" onclick="doGoogle()">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M15.68 8.18c0-.57-.05-1.11-.14-1.64H8v3.1h4.3a3.67 3.67 0 01-1.6 2.41v2h2.6c1.52-1.4 2.38-3.46 2.38-5.87z" fill="#4285F4"/><path d="M8 16c2.16 0 3.97-.72 5.3-1.94l-2.6-2a5.02 5.02 0 01-2.7.75 5 5 0 01-4.7-3.44H.62v2.06A8 8 0 008 16z" fill="#34A853"/><path d="M3.3 9.37A5.06 5.06 0 013.04 8c0-.47.08-.93.26-1.37V4.57H.62A8 8 0 000 8c0 1.29.31 2.51.62 3.43l2.68-2.06z" fill="#FBBC05"/><path d="M8 3.18c1.22 0 2.31.42 3.17 1.24l2.38-2.38A8 8 0 00.62 4.57L3.3 6.63A5 5 0 018 3.18z" fill="#EA4335"/></svg>
+          Continuer avec Google
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGELOG (bas gauche) -->
+<div class="changelog">
+  <div class="changelog-title">Mises à jour</div>
+  <div class="changelog-item">
+    <div class="cl-dot new"></div>
+    <div class="cl-content">
+      <div class="cl-version">v1.0 · Lancement</div>
+      <div class="cl-desc">Arbre interactif, recherche, stats, sync cloud multi-appareils</div>
+      <div class="cl-date">Mai 2026</div>
+    </div>
+  </div>
+  <div class="changelog-item">
+    <div class="cl-dot"></div>
+    <div class="cl-content">
+      <div class="cl-version">À venir · v1.1</div>
+      <div class="cl-desc">Import GEDCOM, photos, partage famille</div>
+      <div class="cl-date">Prochainement</div>
+    </div>
+  </div>
+  <div class="changelog-item">
+    <div class="cl-dot"></div>
+    <div class="cl-content">
+      <div class="cl-version">À venir · v1.2</div>
+      <div class="cl-desc">Carte des origines, IA de recherche d'ancêtres</div>
+      <div class="cl-date">Été 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS BAS DROITE -->
+<div class="bottom-right">
+  <div class="stat-pill">✦ 100% gratuit</div>
+  <div class="stat-pill">🔒 Données privées</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  ⚙️  CONFIGURATION — REMPLACEZ CES DEUX LIGNES
+// ═══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://jhcuqfyxtkpslyddmarz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_vBx0Rl6GQF-V7YNfaKuxkg_wqrkyXws';
+// ═══════════════════════════════════════════════════════
+
+let supabase = null;
+let configured = false;
+
+function initSupabase() {
+  if (SUPABASE_URL === 'VOTRE_URL' || SUPABASE_ANON_KEY === 'VOTRE_ANON_KEY') {
+    document.getElementById('configBanner').style.display = 'block';
+    document.getElementById('configBanner').style.top = '0';
+    document.querySelector('.page').style.paddingTop = '40px';
+    configured = false;
+    return false;
+  }
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    configured = true;
+    return true;
+  } catch(e) {
+    showError('Erreur de configuration Supabase : ' + e.message);
+    return false;
+  }
+}
+
+// ── BACKGROUND CANVAS ──
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+let nodes = [], links = [];
+
+function initBG() {
+  bgCanvas.width = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+  nodes = Array.from({length: 28}, () => ({
+    x: Math.random() * bgCanvas.width,
+    y: Math.random() * bgCanvas.height,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    r: Math.random() * 2 + 1
+  }));
+}
+
+function drawBG() {
+  const w = bgCanvas.width, h = bgCanvas.height;
+  bgCtx.clearRect(0, 0, w, h);
+  for (const n of nodes) {
+    n.x += n.vx; n.y += n.vy;
+    if (n.x < 0 || n.x > w) n.vx *= -1;
+    if (n.y < 0 || n.y > h) n.vy *= -1;
+  }
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i+1; j < nodes.length; j++) {
+      const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+      const d = Math.sqrt(dx*dx+dy*dy);
+      if (d < 160) {
+        bgCtx.beginPath();
+        bgCtx.moveTo(nodes[i].x, nodes[i].y);
+        bgCtx.lineTo(nodes[j].x, nodes[j].y);
+        bgCtx.strokeStyle = `rgba(201,168,76,${0.04*(1-d/160)})`;
+        bgCtx.lineWidth = 1;
+        bgCtx.stroke();
+      }
+    }
+  }
+  for (const n of nodes) {
+    bgCtx.beginPath();
+    bgCtx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+    bgCtx.fillStyle = 'rgba(201,168,76,0.15)';
+    bgCtx.fill();
+  }
+  requestAnimationFrame(drawBG);
+}
+window.addEventListener('resize', initBG);
+
+// ── AUTH UI ──
+function switchAuthTab(tab, btn) {
+  document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+  clearMessages();
+}
+
+function showError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('authSuccess').style.display = 'none';
+}
+function showSuccess(msg) {
+  const el = document.getElementById('authSuccess');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('authError').style.display = 'none';
+}
+function clearMessages() {
+  document.getElementById('authError').style.display = 'none';
+  document.getElementById('authSuccess').style.display = 'none';
+}
+
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (loading) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div>';
+  } else {
+    btn.disabled = false;
+  }
+}
+
+// ── DEMO MODE (sans Supabase) ──
+function demoLogin() {
+  localStorage.setItem('ancestra_demo', '1');
+  localStorage.setItem('ancestra_user', JSON.stringify({name:'Utilisateur démo', email:'demo@ancestra.app'}));
+  window.location.href = 'app.html';
+}
+
+// ── LOGIN ──
+async function doLogin() {
+  if (!configured) { demoLogin(); return; }
+  clearMessages();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!email || !pass) { showError('Veuillez remplir tous les champs.'); return; }
+  setLoading('loginBtn', true);
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  setLoading('loginBtn', false);
+  document.getElementById('loginBtn').innerHTML = '<span>Accéder à mon arbre</span>';
+  if (error) { showError(error.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : error.message); return; }
+  window.location.href = 'app.html';
+}
+
+// ── REGISTER ──
+async function doRegister() {
+  if (!configured) { demoLogin(); return; }
+  clearMessages();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  if (!name || !email || !pass) { showError('Veuillez remplir tous les champs.'); return; }
+  if (pass.length < 8) { showError('Le mot de passe doit contenir au moins 8 caractères.'); return; }
+  setLoading('registerBtn', true);
+  const { data, error } = await supabase.auth.signUp({
+    email, password: pass,
+    options: { data: { full_name: name } }
+  });
+  setLoading('registerBtn', false);
+  document.getElementById('registerBtn').innerHTML = '<span>Créer mon compte</span>';
+  if (error) { showError(error.message); return; }
+  if (data.user && !data.session) {
+    showSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.');
+  } else {
+    window.location.href = 'app.html';
+  }
+}
+
+// ── GOOGLE ──
+async function doGoogle() {
+  if (!configured) { demoLogin(); return; }
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/app.html' }
+  });
+}
+
+// ── RESET ──
+async function doReset() {
+  if (!configured) { showError('Configurez Supabase pour utiliser cette fonctionnalité.'); return; }
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) { showError('Entrez votre email pour réinitialiser votre mot de passe.'); return; }
+  await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/app.html' });
+  showSuccess('Email de réinitialisation envoyé !');
+}
+
+// ── INIT ──
+async function init() {
+  initBG();
+  drawBG();
+  initSupabase();
+
+  if (configured) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) { window.location.href = 'app.html'; return; }
+  }
+
+  // Fade out loading
+  setTimeout(() => {
+    const ls = document.getElementById('loadingScreen');
+    ls.style.opacity = '0';
+    setTimeout(() => ls.style.display = 'none', 400);
+  }, 800);
+}
+
+init();
+</script>
+</body>
+</html>

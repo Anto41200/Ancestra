@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ancestra — Mon arbre</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #0f0e0c;
+  --bg2: #1a1916;
+  --bg3: #242320;
+  --bg4: #2e2d2a;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #f0ece4;
+  --text2: #9e9a93;
+  --text3: #5c5a56;
+  --gold: #c9a84c;
+  --gold2: #e8c96a;
+  --gold-bg: rgba(201,168,76,0.1);
+  --blue: #4a8ab5;
+  --blue-bg: rgba(74,138,181,0.12);
+  --pink: #b56a7a;
+  --pink-bg: rgba(181,106,122,0.12);
+  --green: #5a9a6a;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 18px; height: 52px;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; z-index: 200;
+}
+.logo { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+.logo-icon { width: 26px; height: 26px; background: var(--gold-bg); border: 1px solid var(--gold); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.topbar-search { flex: 1; max-width: 420px; position: relative; }
+.topbar-search input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 7px; padding: 6px 12px 6px 32px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text); outline: none; transition: border-color 0.18s; }
+.topbar-search input:focus { border-color: var(--border2); }
+.topbar-search input::placeholder { color: var(--text3); }
+.search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; }
+.nav-tabs { display: flex; gap: 2px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 3px; }
+.nav-tab { padding: 5px 13px; font-size: 12px; font-family: 'DM Sans', sans-serif; border: none; border-radius: 6px; cursor: pointer; background: transparent; color: var(--text2); transition: all 0.18s; font-weight: 400; }
+.nav-tab.active { background: var(--bg4); color: var(--text); font-weight: 500; }
+.btn-add { display: flex; align-items: center; gap: 5px; padding: 6px 14px; background: var(--gold); color: #1a1610; border: none; border-radius: var(--radius); font-size: 12.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; transition: background 0.18s; white-space: nowrap; }
+.btn-add:hover { background: var(--gold2); }
+.btn-sm { padding: 6px 10px; background: transparent; border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text2); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.18s; }
+.btn-sm:hover { border-color: var(--gold); color: var(--gold); }
+
+/* User avatar */
+.user-btn { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; cursor: pointer; transition: all 0.18s; }
+.user-btn:hover { border-color: var(--border2); }
+.user-av { width: 24px; height: 24px; border-radius: 50%; background: var(--gold-bg); border: 1px solid var(--gold); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; color: var(--gold); }
+.user-name { font-size: 12px; color: var(--text2); }
+
+/* Sync indicator */
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 5px var(--green); flex-shrink: 0; }
+.sync-dot.syncing { background: var(--gold); box-shadow: 0 0 5px var(--gold); animation: pulse 1s ease infinite; }
+.sync-dot.error { background: #c97a6a; box-shadow: 0 0 5px #c97a6a; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+/* ── LAYOUT ── */
+.app-body { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar { width: 272px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+.sidebar-filters { padding: 10px; border-bottom: 1px solid var(--border); display: flex; gap: 5px; flex-wrap: wrap; }
+.filter-chip { padding: 3px 10px; font-size: 11px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border); border-radius: 20px; background: transparent; color: var(--text2); cursor: pointer; transition: all 0.18s; }
+.filter-chip.on { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); }
+.persons-list { flex: 1; overflow-y: auto; padding: 5px; }
+.persons-list::-webkit-scrollbar { width: 3px; }
+.persons-list::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+.person-card { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: var(--radius); cursor: pointer; border: 1px solid transparent; margin-bottom: 2px; transition: background 0.15s; }
+.person-card:hover { background: var(--bg3); }
+.person-card.selected { background: var(--gold-bg); border-color: rgba(201,168,76,0.25); }
+.avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; flex-shrink: 0; }
+.avatar.m { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(74,138,181,0.3); }
+.avatar.f { background: var(--pink-bg); color: var(--pink); border: 1px solid rgba(181,106,122,0.3); }
+.person-info { flex: 1; min-width: 0; }
+.person-name { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-meta { font-size: 10.5px; color: var(--text3); margin-top: 1px; }
+.person-relation { font-size: 10px; color: var(--gold); margin-top: 1px; }
+.sidebar-footer { padding: 8px 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); display: flex; justify-content: space-between; align-items: center; }
+
+mark { background: rgba(201,168,76,0.25); color: var(--gold2); border-radius: 2px; padding: 0 1px; }
+
+/* ── MAIN ── */
+.main-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.tree-wrap { flex: 1; position: relative; overflow: hidden; }
+#treeCanvas { display: block; cursor: grab; }
+#treeCanvas:active { cursor: grabbing; }
+.tree-hud { position: absolute; bottom: 14px; right: 14px; display: flex; gap: 5px; }
+.hud-btn { width: 30px; height: 30px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text2); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.18s; }
+.hud-btn:hover { border-color: var(--gold); color: var(--gold); }
+.legend { position: absolute; top: 10px; left: 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; font-size: 10.5px; color: var(--text2); display: flex; flex-direction: column; gap: 5px; }
+.leg-row { display: flex; align-items: center; gap: 7px; }
+.leg-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* ── LIST VIEW ── */
+#listView { flex: 1; overflow-y: auto; padding: 18px; }
+#listView::-webkit-scrollbar { width: 4px; }
+#listView::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+.list-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.list-table th { text-align: left; padding: 7px 12px; color: var(--text3); font-size: 10.5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); background: var(--bg2); position: sticky; top: 0; }
+.list-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: middle; }
+.list-table tr:hover td { background: var(--bg2); cursor: pointer; }
+.list-table td:first-child { color: var(--text); font-weight: 500; }
+
+/* ── STATS ── */
+#statsView { flex: 1; overflow-y: auto; padding: 20px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; }
+.stat-label { font-size: 10.5px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 7px; }
+.stat-value { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--gold); }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* ── DETAIL PANEL ── */
+.detail-panel { width: 292px; background: var(--bg2); border-left: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+.detail-panel::-webkit-scrollbar { width: 3px; }
+.detail-panel::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+.detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 10px; color: var(--text3); font-size: 12.5px; padding: 40px 20px; text-align: center; }
+.detail-hero { padding: 22px 18px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.avatar-lg { width: 58px; height: 58px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 500; margin-bottom: 11px; }
+.detail-name { font-family: 'Playfair Display', serif; font-size: 17px; margin-bottom: 3px; }
+.detail-life { font-size: 11.5px; color: var(--text3); }
+.detail-badge { display: inline-block; margin-top: 7px; padding: 2px 9px; background: var(--gold-bg); border: 1px solid rgba(201,168,76,0.3); border-radius: 20px; font-size: 10.5px; color: var(--gold); }
+.detail-section { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.detail-section-title { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 9px; }
+.detail-row { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: 12px; }
+.detail-row .lbl { color: var(--text3); flex-shrink: 0; }
+.detail-row .val { text-align: right; color: var(--text2); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { display: inline-flex; align-items: center; padding: 3px 9px; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; font-size: 11px; color: var(--text2); cursor: pointer; transition: all 0.18s; }
+.chip:hover { border-color: var(--border2); color: var(--text); }
+.detail-actions { padding: 12px 18px; display: flex; flex-direction: column; gap: 7px; }
+.detail-btn { width: 100%; padding: 7px 12px; border-radius: var(--radius); font-size: 12.5px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.detail-btn.primary { background: var(--gold); color: #1a1610; border: none; font-weight: 500; }
+.detail-btn.primary:hover { background: var(--gold2); }
+.detail-btn.secondary { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+.detail-btn.secondary:hover { background: var(--bg3); color: var(--text); }
+.detail-btn.danger { background: transparent; color: #b56a6a; border: 1px solid rgba(181,106,106,0.2); }
+.detail-btn.danger:hover { background: rgba(181,106,106,0.1); }
+
+/* ── MODAL ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; backdrop-filter: blur(4px); }
+.modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-lg); width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow); }
+.modal::-webkit-scrollbar { width: 4px; }
+.modal::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.modal-title { font-family: 'Playfair Display', serif; font-size: 16px; }
+.modal-close { width: 26px; height: 26px; background: var(--bg3); border: none; border-radius: 6px; color: var(--text2); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.modal-close:hover { background: var(--bg4); }
+.modal-body { padding: 18px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-group label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.form-group input, .form-group select, .form-group textarea { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 11px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text); outline: none; transition: border-color 0.18s; width: 100%; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--gold); }
+.form-group input::placeholder, .form-group textarea::placeholder { color: var(--text3); }
+.form-group select option { background: var(--bg3); }
+.form-group textarea { resize: vertical; min-height: 65px; }
+.form-section { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin: 16px 0 9px; display: flex; align-items: center; gap: 10px; }
+.form-section::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--border); }
+.btn { padding: 7px 16px; border-radius: var(--radius); font-size: 12.5px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.18s; font-weight: 500; }
+.btn-cancel { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+.btn-cancel:hover { background: var(--bg3); }
+.btn-save { background: var(--gold); border: none; color: #1a1610; }
+.btn-save:hover { background: var(--gold2); }
+
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(70px); background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius); padding: 9px 18px; font-size: 12.5px; color: var(--text); z-index: 9999; transition: transform 0.3s ease; box-shadow: var(--shadow); }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── USER DROPDOWN ── */
+.user-dropdown { position: absolute; top: 54px; right: 18px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 8px; z-index: 500; min-width: 200px; box-shadow: var(--shadow); display: none; }
+.user-dropdown.open { display: block; }
+.dropdown-item { padding: 8px 12px; border-radius: var(--radius); font-size: 13px; color: var(--text2); cursor: pointer; transition: background 0.18s; display: flex; align-items: center; gap: 9px; }
+.dropdown-item:hover { background: var(--bg3); color: var(--text); }
+.dropdown-item.danger { color: #b56a6a; }
+.dropdown-item.danger:hover { background: rgba(181,106,106,0.1); }
+.dropdown-sep { height: 1px; background: var(--border); margin: 5px 0; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="2.5" r="2" fill="#c9a84c"/>
+        <circle cx="2.5" cy="10.5" r="2" fill="#c9a84c"/>
+        <circle cx="11.5" cy="10.5" r="2" fill="#c9a84c"/>
+        <line x1="7" y1="4.5" x2="2.5" y2="8.5" stroke="#c9a84c" stroke-width="1.1"/>
+        <line x1="7" y1="4.5" x2="11.5" y2="8.5" stroke="#c9a84c" stroke-width="1.1"/>
+      </svg>
+    </div>
+    Ancestra
+  </div>
+
+  <div class="topbar-search">
+    <svg class="search-icon" width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8.5" y1="8.5" x2="12" y2="12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>
+    <input type="text" id="searchInput" placeholder="Rechercher… (Ctrl+K)" oninput="handleSearch(this.value)">
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('tree',this)">Arbre</button>
+    <button class="nav-tab" onclick="switchTab('list',this)">Liste</button>
+    <button class="nav-tab" onclick="switchTab('stats',this)">Stats</button>
+  </div>
+
+  <button class="btn-sm" onclick="exportJSON()">↓ Export</button>
+  <button class="btn-sm" onclick="importJSON()">↑ Import</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="loadJSON(this)">
+  <button class="btn-add" onclick="openModal('add',null)">＋ Ajouter</button>
+
+  <div title="Sync" style="display:flex;align-items:center;gap:5px">
+    <div class="sync-dot" id="syncDot"></div>
+    <span style="font-size:10.5px;color:var(--text3)" id="syncLabel">Sync</span>
+  </div>
+
+  <div class="user-btn" onclick="toggleUserMenu()" id="userBtn">
+    <div class="user-av" id="userAv">?</div>
+    <span class="user-name" id="userName">…</span>
+  </div>
+</div>
+
+<!-- USER DROPDOWN -->
+<div class="user-dropdown" id="userDropdown">
+  <div class="dropdown-item" onclick="exportJSON()">↓ Exporter mon arbre</div>
+  <div class="dropdown-item" onclick="importJSON()">↑ Importer un arbre</div>
+  <div class="dropdown-sep"></div>
+  <div class="dropdown-item" id="ddEmail" style="font-size:11px;color:var(--text3);cursor:default"></div>
+  <div class="dropdown-sep"></div>
+  <div class="dropdown-item danger" onclick="doLogout()">Se déconnecter</div>
+</div>
+
+<!-- APP BODY -->
+<div class="app-body">
+  <div class="sidebar">
+    <div class="sidebar-filters">
+      <button class="filter-chip on" onclick="setFilter('all',this)">Tous</button>
+      <button class="filter-chip" onclick="setFilter('m',this)">Hommes</button>
+      <button class="filter-chip" onclick="setFilter('f',this)">Femmes</button>
+      <button class="filter-chip" onclick="setFilter('parents',this)">Ancêtres</button>
+      <button class="filter-chip" onclick="setFilter('recent',this)">Récents</button>
+    </div>
+    <div class="persons-list" id="personsList"></div>
+    <div class="sidebar-footer">
+      <span id="sidebarFooter"></span>
+      <span id="lastSaved" style="font-size:10px;color:var(--text3)"></span>
+    </div>
+  </div>
+
+  <div class="main-content" id="mainContent">
+    <div class="tree-wrap" id="treeView">
+      <canvas id="treeCanvas"></canvas>
+      <div class="legend">
+        <div class="leg-row"><div class="leg-dot" style="background:#4a8ab5"></div>Homme</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#b56a7a"></div>Femme</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#c9a84c"></div>Sélectionné</div>
+      </div>
+      <div class="tree-hud">
+        <button class="hud-btn" onclick="treeZoom(1.25)">+</button>
+        <button class="hud-btn" onclick="treeZoom(0.8)">−</button>
+        <button class="hud-btn" onclick="treeFit()">⊡</button>
+        <button class="hud-btn" onclick="treeCenter()">⌖</button>
+      </div>
+    </div>
+    <div id="listView" style="display:none;flex:1;overflow-y:auto;padding:18px">
+      <table class="list-table"><thead><tr><th>Nom</th><th>Naissance</th><th>Décès</th><th>Lieu</th><th>Profession</th><th>Lien</th></tr></thead>
+      <tbody id="listBody"></tbody></table>
+    </div>
+    <div id="statsView" style="display:none;flex:1;overflow-y:auto;padding:20px">
+      <div class="stats-grid" id="statsContent"></div>
+    </div>
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-empty" id="detailEmpty">
+      <svg width="42" height="42" viewBox="0 0 42 42" fill="none" style="opacity:0.3">
+        <circle cx="21" cy="15" r="7" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M7 38c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div>Cliquez sur une personne<br>pour voir ses détails</div>
+    </div>
+    <div id="detailContent" style="display:none"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-save" id="modalSaveBtn" onclick="saveModal()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  ⚙️  CONFIGURATION — MÊMES VALEURS QUE index.html
+// ═══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://jhcuqfyxtkpslyddmarz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_vBx0Rl6GQF-V7YNfaKuxkg_wqrkyXws';
+// ═══════════════════════════════════════════════════════
+
+const STORE_KEY = 'ancestra_v1';
+const DEMO_MODE_KEY = 'ancestra_demo';
+
+let supabase = null;
+let currentUser = null;
+let isDemoMode = false;
+let syncTimeout = null;
+
+// ── DEFAULT DATA ──
+const DEFAULT_DATA = {
+  persons:[
+    {id:1,prenom:'Jean',nom:'Martin',sexe:'m',naissance:'1920',deces:'1985',lieu_naissance:'Paris',lieu_deces:'Lyon',profession:'Agriculteur',notes:'Fondateur de la lignée'},
+    {id:2,prenom:'Marie',nom:'Dupont',sexe:'f',naissance:'1922',deces:'1991',lieu_naissance:'Bordeaux',lieu_deces:'Lyon',profession:'Institutrice',notes:''},
+    {id:3,prenom:'Émile',nom:'Martin',sexe:'m',naissance:'1895',deces:'1962',lieu_naissance:'Dijon',lieu_deces:'Paris',profession:'Notaire',notes:''},
+    {id:4,prenom:'Hélène',nom:'Rousseau',sexe:'f',naissance:'1898',deces:'1974',lieu_naissance:'Dijon',lieu_deces:'Lyon',profession:'',notes:''},
+    {id:5,prenom:'Pierre',nom:'Martin',sexe:'m',naissance:'1948',deces:'',lieu_naissance:'Lyon',lieu_deces:'',profession:'Médecin',notes:''},
+    {id:6,prenom:'Claire',nom:'Lefebvre',sexe:'f',naissance:'1950',deces:'',lieu_naissance:'Nantes',lieu_deces:'',profession:'Avocate',notes:''},
+    {id:7,prenom:'Thomas',nom:'Martin',sexe:'m',naissance:'1978',deces:'',lieu_naissance:'Lyon',lieu_deces:'',profession:'Professeur',notes:''},
+    {id:8,prenom:'Lucas',nom:'Martin',sexe:'m',naissance:'2006',deces:'',lieu_naissance:'Paris',lieu_deces:'',profession:'',notes:''},
+  ],
+  liens:[
+    {parent:3,enfant:1},{parent:4,enfant:1},
+    {parent:1,enfant:5},{parent:2,enfant:5},
+    {parent:5,enfant:7},{parent:6,enfant:7},
+    {parent:7,enfant:8},
+  ],
+  conjoints:[{p1:1,p2:2},{p1:5,p2:6}],
+  nextId:9
+};
+
+let DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
+
+// ═══════════════════════════════════════════
+// SUPABASE SYNC
+// ═══════════════════════════════════════════
+function setSyncStatus(status) {
+  const dot = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  dot.className = 'sync-dot' + (status === 'syncing' ? ' syncing' : status === 'error' ? ' error' : '');
+  if (status === 'syncing') label.textContent = 'Sync…';
+  else if (status === 'ok') label.textContent = 'Sync';
+  else if (status === 'error') label.textContent = 'Hors ligne';
+  else label.textContent = 'Local';
+}
+
+async function loadFromCloud() {
+  if (!supabase || !currentUser) return false;
+  setSyncStatus('syncing');
+  try {
+    const { data, error } = await supabase
+      .from('family_trees')
+      .select('data')
+      .eq('user_id', currentUser.id)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (data && data.data) {
+      DB = data.data;
+      localStorage.setItem(STORE_KEY + '_' + currentUser.id, JSON.stringify(DB));
+      setSyncStatus('ok');
+      return true;
+    }
+    setSyncStatus('ok');
+    return false;
+  } catch(e) {
+    console.warn('Cloud load error:', e);
+    setSyncStatus('error');
+    // Fallback to local
+    const local = localStorage.getItem(STORE_KEY + '_' + currentUser.id);
+    if (local) { try { DB = JSON.parse(local); } catch(e){} }
+    return false;
+  }
+}
+
+async function saveToCloud() {
+  if (!supabase || !currentUser || isDemoMode) {
+    // Save locally only
+    localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+    document.getElementById('lastSaved').textContent = 'Sauvegardé localement';
+    return;
+  }
+  setSyncStatus('syncing');
+  try {
+    const { error } = await supabase
+      .from('family_trees')
+      .upsert({ user_id: currentUser.id, data: DB, updated_at: new Date().toISOString() },
+               { onConflict: 'user_id' });
+    if (error) throw error;
+    localStorage.setItem(STORE_KEY + '_' + currentUser.id, JSON.stringify(DB));
+    setSyncStatus('ok');
+    const now = new Date();
+    document.getElementById('lastSaved').textContent = `Sync ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  } catch(e) {
+    console.warn('Cloud save error:', e);
+    setSyncStatus('error');
+    localStorage.setItem(STORE_KEY + '_' + currentUser.id, JSON.stringify(DB));
+    document.getElementById('lastSaved').textContent = 'Sauvegardé localement';
+  }
+}
+
+function scheduleSave() {
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(saveToCloud, 1500);
+}
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+function updateUserUI(user) {
+  if (!user) return;
+  const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Moi';
+  const initials = name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('userAv').textContent = initials;
+  document.getElementById('userName').textContent = name.split(' ')[0];
+  document.getElementById('ddEmail').textContent = user.email || '';
+}
+
+function toggleUserMenu() {
+  document.getElementById('userDropdown').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!document.getElementById('userBtn').contains(e.target)) {
+    document.getElementById('userDropdown').classList.remove('open');
+  }
+});
+
+async function doLogout() {
+  if (supabase) await supabase.auth.signOut();
+  localStorage.removeItem(DEMO_MODE_KEY);
+  window.location.href = 'index.html';
+}
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let selectedId = null;
+let activeFilter = 'all';
+let searchQuery = '';
+let currentTab = 'tree';
+let modalMode = null, modalTargetId = null;
+let treeScale = 1, treeOffX = 0, treeOffY = 0;
+let isDragging = false, dragSX = 0, dragSY = 0, dragOX = 0, dragOY = 0;
+let nodePos = {};
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+const initials = p => ((p.prenom||'')[0]||'') + ((p.nom||'')[0]||'');
+const getAge = p => { if(!p.naissance) return ''; const s=parseInt(p.naissance),e=p.deces?parseInt(p.deces):new Date().getFullYear(); return isNaN(s)||isNaN(e)?'':e-s; };
+const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const markText = (t,q) => { if(!q) return escHtml(t); return escHtml(t).replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark>$1</mark>'); };
+const getPerson = id => DB.persons.find(p => p.id === id);
+const getParents = id => DB.liens.filter(l => l.enfant === id).map(l => getPerson(l.parent)).filter(Boolean);
+const getChildren = id => DB.liens.filter(l => l.parent === id).map(l => getPerson(l.enfant)).filter(Boolean);
+const getConjoint = id => { const c = DB.conjoints.find(c=>c.p1===id||c.p2===id); return c ? getPerson(c.p1===id?c.p2:c.p1) : null; };
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function getRelation(id) {
+  if (!DB.persons.length) return '';
+  const root = DB.persons[0];
+  if (id === root.id) return 'Racine';
+  function bfs(start, target) {
+    const q = [[start,0]]; const vis = new Set([start]);
+    while(q.length){ const [cur,d]=q.shift(); for(const c of getChildren(cur)){ if(!vis.has(c.id)){if(c.id===target)return d+1; vis.add(c.id); q.push([c.id,d+1]);} } }
+    return -1;
+  }
+  const d = bfs(root.id, id);
+  if(d===1) return 'Enfant';
+  if(d===2) return 'Petit-enfant';
+  if(d===3) return 'Arrière-petit-enfant';
+  if(d>3) return `Gén. +${d}`;
+  const pars = getParents(id);
+  for(const p of pars){ if(p.id===root.id) return 'Enfant'; for(const gp of getParents(p.id)){ if(gp.id===root.id) return 'Parent'; for(const ggp of getParents(gp.id)){ if(ggp.id===root.id) return 'Grand-parent'; for(const g of getParents(ggp.id)){ if(g.id===root.id) return 'Arrière-grand-parent'; } } } }
+  return 'Membre';
+}
+
+// ═══════════════════════════════════════════
+// FILTER & SEARCH
+// ═══════════════════════════════════════════
+function handleSearch(q) { searchQuery = q.trim(); renderList(); renderTree(); }
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderList();
+}
+function filteredPersons() {
+  const q = searchQuery.toLowerCase();
+  return DB.persons.filter(p => {
+    const ok = !q || [p.prenom,p.nom,p.lieu_naissance,p.profession,p.naissance,p.notes].some(v=>(v||'').toLowerCase().includes(q));
+    const f = activeFilter==='all'||activeFilter===p.sexe
+      ||(activeFilter==='parents'&&DB.liens.some(l=>l.parent===p.id))
+      ||(activeFilter==='recent'&&p.naissance&&parseInt(p.naissance)>=1960);
+    return ok && f;
+  });
+}
+
+// ═══════════════════════════════════════════
+// RENDER LIST (SIDEBAR)
+// ═══════════════════════════════════════════
+function renderList() {
+  const el = document.getElementById('personsList');
+  const list = filteredPersons();
+  if (!list.length) { el.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:var(--text3)">Aucune personne trouvée</div>'; document.getElementById('sidebarFooter').textContent=''; return; }
+  el.innerHTML = list.map(p => {
+    const age = getAge(p);
+    const rel = getRelation(p.id);
+    return `<div class="person-card${p.id===selectedId?' selected':''}" onclick="selectPerson(${p.id})">
+      <div class="avatar ${p.sexe}">${initials(p)}</div>
+      <div class="person-info">
+        <div class="person-name">${markText(p.prenom+' '+p.nom,searchQuery)}</div>
+        <div class="person-meta">${p.naissance||'?'} – ${p.deces||'auj.'}${age?' · '+age+' ans':''}</div>
+        ${p.lieu_naissance?`<div class="person-meta" style="color:var(--text3)">${escHtml(p.lieu_naissance)}</div>`:''}
+        <div class="person-relation">${rel}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('sidebarFooter').textContent = `${list.length}/${DB.persons.length} pers.`;
+}
+
+// ═══════════════════════════════════════════
+// SELECT
+// ═══════════════════════════════════════════
+function selectPerson(id) {
+  selectedId = id;
+  renderList();
+  renderDetail(id);
+  if (currentTab === 'tree') renderTree();
+}
+
+// ═══════════════════════════════════════════
+// DETAIL
+// ═══════════════════════════════════════════
+function renderDetail(id) {
+  const p = getPerson(id);
+  const emptyEl = document.getElementById('detailEmpty');
+  const contentEl = document.getElementById('detailContent');
+  if (!p) { emptyEl.style.display='flex'; contentEl.style.display='none'; return; }
+  emptyEl.style.display = 'none';
+  contentEl.style.display = 'block';
+  const age = getAge(p), rel = getRelation(id);
+  const parents = getParents(id), children = getChildren(id), conj = getConjoint(id);
+  const siblings = parents.flatMap(par => getChildren(par.id)).filter(s => s.id !== id);
+  contentEl.innerHTML = `
+    <div class="detail-hero">
+      <div class="avatar-lg ${p.sexe}">${initials(p)}</div>
+      <div class="detail-name">${escHtml(p.prenom+' '+p.nom)}</div>
+      <div class="detail-life">${p.naissance||'?'} – ${p.deces||(p.naissance?'vivant(e)':'?')}${age?' · '+age+' ans':''}</div>
+      ${rel?`<div class="detail-badge">${rel}</div>`:''}
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Informations</div>
+      ${p.lieu_naissance?`<div class="detail-row"><span class="lbl">Naissance</span><span class="val">${escHtml(p.lieu_naissance)}${p.naissance?' ('+p.naissance+')':''}</span></div>`:''}
+      ${p.deces&&p.lieu_deces?`<div class="detail-row"><span class="lbl">Décès</span><span class="val">${escHtml(p.lieu_deces)} (${p.deces})</span></div>`:''}
+      ${p.profession?`<div class="detail-row"><span class="lbl">Profession</span><span class="val">${escHtml(p.profession)}</span></div>`:''}
+      ${!p.deces&&p.naissance?`<div class="detail-row"><span class="lbl">Statut</span><span class="val" style="color:var(--green)">Vivant(e)</span></div>`:''}
+    </div>
+    ${conj?`<div class="detail-section"><div class="detail-section-title">Conjoint(e)</div><div class="chip-row"><div class="chip" onclick="selectPerson(${conj.id})">${escHtml(conj.prenom+' '+conj.nom)}</div></div></div>`:''}
+    ${parents.length?`<div class="detail-section"><div class="detail-section-title">Parents</div><div class="chip-row">${parents.map(x=>`<div class="chip" onclick="selectPerson(${x.id})">${escHtml(x.prenom+' '+x.nom)}</div>`).join('')}</div></div>`:''}
+    ${siblings.length?`<div class="detail-section"><div class="detail-section-title">Frères & sœurs</div><div class="chip-row">${siblings.map(x=>`<div class="chip" onclick="selectPerson(${x.id})">${escHtml(x.prenom+' '+x.nom)}</div>`).join('')}</div></div>`:''}
+    ${children.length?`<div class="detail-section"><div class="detail-section-title">Enfants (${children.length})</div><div class="chip-row">${children.map(x=>`<div class="chip" onclick="selectPerson(${x.id})">${escHtml(x.prenom+' '+x.nom)}</div>`).join('')}</div></div>`:''}
+    ${p.notes?`<div class="detail-section"><div class="detail-section-title">Notes</div><div style="font-size:12px;color:var(--text2);line-height:1.6">${escHtml(p.notes)}</div></div>`:''}
+    <div class="detail-actions">
+      <button class="detail-btn primary" onclick="openModal('edit',${id})">✎ Modifier</button>
+      <button class="detail-btn secondary" onclick="openModal('addChild',${id})">＋ Ajouter un enfant</button>
+      <button class="detail-btn secondary" onclick="openModal('addParent',${id})">＋ Lier un parent</button>
+      <button class="detail-btn secondary" onclick="openModal('addConjoint',${id})">♥ Lier un(e) conjoint(e)</button>
+      <button class="detail-btn danger" onclick="deletePerson(${id})">✕ Supprimer</button>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════
+// LIST TABLE
+// ═══════════════════════════════════════════
+function renderListTable() {
+  const list = filteredPersons();
+  document.getElementById('listBody').innerHTML = list.map(p => {
+    const age = getAge(p), rel = getRelation(p.id);
+    return `<tr onclick="selectPerson(${p.id})">
+      <td><div style="display:flex;align-items:center;gap:7px"><div class="avatar ${p.sexe}" style="width:26px;height:26px;font-size:9.5px;flex-shrink:0">${initials(p)}</div>${escHtml(p.prenom+' '+p.nom)}${age?` <span style="font-size:10px;color:var(--text3)">(${age}a)</span>`:''}</div></td>
+      <td>${p.naissance||'—'}</td>
+      <td>${p.deces||'—'}</td>
+      <td>${escHtml(p.lieu_naissance||'—')}</td>
+      <td>${escHtml(p.profession||'—')}</td>
+      <td><span style="font-size:10px;color:var(--gold)">${rel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════
+function renderStats() {
+  const ps = DB.persons, total = ps.length;
+  if (!total) { document.getElementById('statsContent').innerHTML='<div style="color:var(--text3);font-size:13px">Aucune donnée</div>'; return; }
+  const men = ps.filter(p=>p.sexe==='m').length, women = ps.filter(p=>p.sexe==='f').length;
+  const deceased = ps.filter(p=>p.deces).length;
+  const years = ps.map(p=>parseInt(p.naissance)).filter(n=>!isNaN(n));
+  const oldest = years.length?Math.min(...years):'—', youngest = years.length?Math.max(...years):'—';
+  const ages = ps.filter(p=>getAge(p)).map(p=>getAge(p));
+  const avgAge = ages.length?Math.round(ages.reduce((a,b)=>a+b,0)/ages.length):0;
+  const lieux = {}; ps.forEach(p=>{if(p.lieu_naissance){const l=p.lieu_naissance.split(',')[0].trim();lieux[l]=(lieux[l]||0)+1;}});
+  const topLieu = Object.entries(lieux).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('statsContent').innerHTML = [
+    {label:'Total',val:total,sub:'personnes dans l\'arbre'},
+    {label:'Hommes',val:men,sub:`${Math.round(men/total*100)}% de l'arbre`},
+    {label:'Femmes',val:women,sub:`${Math.round(women/total*100)}% de l'arbre`},
+    {label:'Vivants',val:total-deceased,sub:`${deceased} décédé${deceased>1?'s':''}`},
+    {label:'1ère naissance',val:oldest,sub:'Ancêtre le plus ancien'},
+    {label:'Dernière naissance',val:youngest,sub:'Membre le plus récent'},
+    {label:'Âge moyen',val:avgAge+'a',sub:'Tous membres'},
+    {label:'Lieu principal',val:topLieu?topLieu[0]:'—',sub:topLieu?topLieu[1]+' pers.':''},
+    {label:'Liens parenté',val:DB.liens.length,sub:`${DB.conjoints.length} union${DB.conjoints.length>1?'s':''}`},
+  ].map(s=>`<div class="stat-card"><div class="stat-label">${s.label}</div><div class="stat-value">${s.val}</div><div class="stat-sub">${s.sub}</div></div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// TREE
+// ═══════════════════════════════════════════
+function computeLayout() {
+  nodePos = {};
+  const NW=152,NH=62,HGAP=36,VGAP=96;
+  const hasParent = new Set(DB.liens.map(l=>l.enfant));
+  const roots = DB.persons.map(p=>p.id).filter(id=>!hasParent.has(id));
+  function sw(id,vis=new Set()){if(vis.has(id))return 1;vis.add(id);const c=getChildren(id);return c.length?c.reduce((s,x)=>s+sw(x.id,vis),0):1;}
+  function place(id,x,y,vis=new Set()){if(vis.has(id))return;vis.add(id);nodePos[id]={x,y};const c=getChildren(id);if(!c.length)return;let cx=x-(c.reduce((s,x)=>s+sw(x.id,new Set()),0)*(NW+HGAP))/2+(NW+HGAP)/2;for(const ch of c){const s=sw(ch.id,new Set());place(ch.id,cx+(s-1)*(NW+HGAP)/2,y+NH+VGAP,vis);cx+=s*(NW+HGAP);}}
+  let sx=200;
+  for(const r of roots){const s=sw(r,new Set());place(r,sx+s*(NW+HGAP)/2,60);sx+=s*(NW+HGAP)+80;}
+  for(const p of DB.persons){if(!nodePos[p.id]){nodePos[p.id]={x:sx,y:60};sx+=NW+HGAP;}}
+}
+
+function renderTree() {
+  const wrap = document.getElementById('treeView');
+  const canvas = document.getElementById('treeCanvas');
+  const dpr = window.devicePixelRatio||1;
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  computeLayout();
+  const NW=152,NH=62;
+  ctx.save();
+  ctx.translate(treeOffX,treeOffY);
+  ctx.scale(treeScale,treeScale);
+  // Conjoint lines
+  ctx.setLineDash([4,4]);
+  ctx.strokeStyle='rgba(201,168,76,0.22)';
+  ctx.lineWidth=1;
+  for(const c of DB.conjoints){const a=nodePos[c.p1],b=nodePos[c.p2];if(a&&b){ctx.beginPath();ctx.moveTo(a.x+NW,a.y+NH/2);ctx.lineTo(b.x,b.y+NH/2);ctx.stroke();}}
+  ctx.setLineDash([]);
+  // Parent lines
+  for(const l of DB.liens){const par=nodePos[l.parent],chd=nodePos[l.enfant];if(!par||!chd)continue;const px=par.x+NW/2,py=par.y+NH,cx2=chd.x+NW/2,cy2=chd.y,my=(py+cy2)/2;ctx.beginPath();ctx.moveTo(px,py);ctx.bezierCurveTo(px,my,cx2,my,cx2,cy2);ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=1.5;ctx.stroke();}
+  // Nodes
+  for(const p of DB.persons){
+    const pos=nodePos[p.id]; if(!pos) continue;
+    const isSel=p.id===selectedId, isMatch=searchQuery&&[p.prenom,p.nom,p.lieu_naissance,p.profession].some(v=>(v||'').toLowerCase().includes(searchQuery.toLowerCase()));
+    const {x,y}=pos;
+    ctx.beginPath();ctx.roundRect(x,y,NW,NH,8);
+    ctx.fillStyle=isSel?'rgba(201,168,76,0.18)':isMatch?'rgba(90,154,106,0.15)':p.sexe==='m'?'rgba(74,138,181,0.11)':'rgba(181,106,122,0.11)';
+    ctx.fill();
+    ctx.beginPath();ctx.roundRect(x,y,NW,NH,8);
+    ctx.strokeStyle=isSel?'rgba(201,168,76,0.7)':p.sexe==='m'?'rgba(74,138,181,0.28)':'rgba(181,106,122,0.28)';
+    ctx.lineWidth=isSel?1.5:1; ctx.stroke();
+    const avX=x+19,avY=y+NH/2;
+    ctx.beginPath();ctx.arc(avX,avY,14,0,Math.PI*2);
+    ctx.fillStyle=p.sexe==='m'?'rgba(74,138,181,0.18)':'rgba(181,106,122,0.18)'; ctx.fill();
+    ctx.font='500 10.5px DM Sans,sans-serif';
+    ctx.fillStyle=p.sexe==='m'?'#4a8ab5':'#b56a7a';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(initials(p),avX,avY);
+    ctx.font='500 11.5px DM Sans,sans-serif';
+    ctx.fillStyle=isSel?'#e8c96a':'#f0ece4';
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    ctx.fillText((p.prenom+' '+p.nom).slice(0,19),x+38,y+24);
+    ctx.font='300 9.5px DM Sans,sans-serif';
+    ctx.fillStyle='#5c5a56';
+    ctx.fillText((p.naissance||'?')+' – '+(p.deces||'auj.'),x+38,y+39);
+    if(p.profession){ctx.font='300 9.5px DM Sans,sans-serif';ctx.fillStyle='#9e9a93';ctx.fillText(p.profession.slice(0,22),x+38,y+54);}
+  }
+  ctx.restore();
+}
+
+function treeZoom(f){treeScale=Math.max(0.2,Math.min(3,treeScale*f));renderTree();}
+function treeFit(){
+  const wrap=document.getElementById('treeView'),w=wrap.clientWidth,h=wrap.clientHeight;
+  computeLayout();
+  const xs=Object.values(nodePos).map(p=>p.x),ys=Object.values(nodePos).map(p=>p.y);
+  if(!xs.length)return;
+  const minX=Math.min(...xs),maxX=Math.max(...xs)+155,minY=Math.min(...ys),maxY=Math.max(...ys)+65;
+  treeScale=Math.max(0.2,Math.min(1,Math.min((w-60)/(maxX-minX),(h-60)/(maxY-minY))));
+  treeOffX=(w-(maxX+minX)*treeScale)/2; treeOffY=40;
+  renderTree();
+}
+function treeCenter(){const w=document.getElementById('treeView').clientWidth,h=document.getElementById('treeView').clientHeight;treeOffX=w/2-80;treeOffY=h/2-32;renderTree();}
+
+// Canvas events
+const tc=document.getElementById('treeCanvas');
+tc.addEventListener('click',e=>{
+  if(isDragging)return;
+  const rect=tc.getBoundingClientRect(),mx=(e.clientX-rect.left-treeOffX)/treeScale,my=(e.clientY-rect.top-treeOffY)/treeScale;
+  for(const p of DB.persons){const pos=nodePos[p.id];if(!pos)continue;if(mx>=pos.x&&mx<=pos.x+152&&my>=pos.y&&my<=pos.y+62){selectPerson(p.id);return;}}
+  selectedId=null;renderList();document.getElementById('detailEmpty').style.display='flex';document.getElementById('detailContent').style.display='none';
+});
+tc.addEventListener('mousedown',e=>{isDragging=false;dragSX=e.clientX;dragSY=e.clientY;dragOX=treeOffX;dragOY=treeOffY;});
+tc.addEventListener('mousemove',e=>{if(e.buttons!==1)return;const dx=e.clientX-dragSX,dy=e.clientY-dragSY;if(Math.abs(dx)+Math.abs(dy)>4)isDragging=true;treeOffX=dragOX+dx;treeOffY=dragOY+dy;renderTree();});
+tc.addEventListener('mouseup',()=>setTimeout(()=>isDragging=false,50));
+tc.addEventListener('wheel',e=>{e.preventDefault();treeScale=Math.max(0.2,Math.min(3,treeScale*(e.deltaY<0?1.1:0.9)));renderTree();},{passive:false});
+let touchS=null;
+tc.addEventListener('touchstart',e=>{touchS=e.touches[0];dragOX=treeOffX;dragOY=treeOffY;},{passive:true});
+tc.addEventListener('touchmove',e=>{if(!touchS)return;e.preventDefault();treeOffX=dragOX+e.touches[0].clientX-touchS.clientX;treeOffY=dragOY+e.touches[0].clientY-touchS.clientY;renderTree();},{passive:false});
+
+// ═══════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════
+function personForm(p){
+  const v=f=>p?escHtml(p[f]||'):'';
+  return`<div class="form-grid">
+    <div class="form-group"><label>Prénom *</label><input id="fPrenom" value="${v('prenom')}" placeholder="Prénom"></div>
+    <div class="form-group"><label>Nom *</label><input id="fNom" value="${v('nom')}" placeholder="Nom"></div>
+    <div class="form-group"><label>Sexe</label><select id="fSexe"><option value="m"${p&&p.sexe==='m'?' selected':''}>Homme</option><option value="f"${p&&p.sexe==='f'?' selected':''}>Femme</option></select></div>
+    <div class="form-group"><label>Profession</label><input id="fProfession" value="${v('profession')}" placeholder="Métier"></div>
+  </div>
+  <div class="form-section">Naissance</div>
+  <div class="form-grid">
+    <div class="form-group"><label>Année</label><input id="fNaissance" value="${v('naissance')}" placeholder="ex: 1945"></div>
+    <div class="form-group"><label>Lieu</label><input id="fLieuNaissance" value="${v('lieu_naissance')}" placeholder="Ville, Pays"></div>
+  </div>
+  <div class="form-section">Décès</div>
+  <div class="form-grid">
+    <div class="form-group"><label>Année</label><input id="fDeces" value="${v('deces')}" placeholder="Vide si vivant"></div>
+    <div class="form-group"><label>Lieu</label><input id="fLieuDeces" value="${v('lieu_deces')}" placeholder="Ville, Pays"></div>
+  </div>
+  <div class="form-section">Notes</div>
+  <div class="form-group full"><textarea id="fNotes" placeholder="Anecdotes, sources…">${p?escHtml(p.notes||'):''}</textarea></div>`;
+}
+
+function linkSelectForm(excludeId, label) {
+  const opts = DB.persons.filter(p=>p.id!==excludeId).map(p=>`<option value="${p.id}">${escHtml(p.prenom+' '+p.nom)} (${p.naissance||'?'})</option>`).join('');
+  return `<div class="form-group"><label>${label}</label><select id="fLinkId"><option value="">-- Choisir --</option>${opts}</select></div>`;
+}
+
+function openModal(mode, id) {
+  modalMode=mode; modalTargetId=id;
+  const title=document.getElementById('modalTitle'),body=document.getElementById('modalBody'),saveBtn=document.getElementById('modalSaveBtn');
+  document.getElementById('modalOverlay').style.display='flex';
+  if(mode==='add'){title.textContent='Ajouter une personne';saveBtn.textContent='Ajouter';body.innerHTML=personForm(null);}
+  else if(mode==='edit'){title.textContent='Modifier';saveBtn.textContent='Enregistrer';body.innerHTML=personForm(getPerson(id));}
+  else if(mode==='addChild'){title.textContent='Ajouter un enfant à '+getPerson(id).prenom;saveBtn.textContent='Ajouter';body.innerHTML=personForm(null);}
+  else if(mode==='addParent'){title.textContent='Lier un parent';saveBtn.textContent='Lier';body.innerHTML=linkSelectForm(id,'Parent existant');}
+  else if(mode==='addConjoint'){title.textContent='Lier un(e) conjoint(e)';saveBtn.textContent='Lier';body.innerHTML=linkSelectForm(id,'Conjoint(e)');}
+}
+function closeModal(){document.getElementById('modalOverlay').style.display='none';}
+function closeModalOutside(e){if(e.target===document.getElementById('modalOverlay'))closeModal();}
+
+function saveModal(){
+  if(modalMode==='add'||modalMode==='addChild'){
+    const prenom=document.getElementById('fPrenom').value.trim(),nom=document.getElementById('fNom').value.trim();
+    if(!prenom||!nom){alert('Prénom et nom requis.');return;}
+    const np={id:DB.nextId++,prenom,nom,sexe:document.getElementById('fSexe').value,naissance:document.getElementById('fNaissance').value.trim(),deces:document.getElementById('fDeces').value.trim(),lieu_naissance:document.getElementById('fLieuNaissance').value.trim(),lieu_deces:document.getElementById('fLieuDeces').value.trim(),profession:document.getElementById('fProfession').value.trim(),notes:document.getElementById('fNotes').value.trim()};
+    DB.persons.push(np);
+    if(modalMode==='addChild'&&modalTargetId)DB.liens.push({parent:modalTargetId,enfant:np.id});
+    selectedId=np.id; toast(`${prenom} ${nom} ajouté(e)`);
+  } else if(modalMode==='edit'){
+    const p=getPerson(modalTargetId); if(!p)return;
+    p.prenom=document.getElementById('fPrenom').value.trim()||p.prenom;
+    p.nom=document.getElementById('fNom').value.trim()||p.nom;
+    p.sexe=document.getElementById('fSexe').value;
+    p.naissance=document.getElementById('fNaissance').value.trim();
+    p.deces=document.getElementById('fDeces').value.trim();
+    p.lieu_naissance=document.getElementById('fLieuNaissance').value.trim();
+    p.lieu_deces=document.getElementById('fLieuDeces').value.trim();
+    p.profession=document.getElementById('fProfession').value.trim();
+    p.notes=document.getElementById('fNotes').value.trim();
+    toast(`${p.prenom} ${p.nom} modifié(e)`);
+  } else if(modalMode==='addParent'){
+    const pid=parseInt(document.getElementById('fLinkId').value); if(!pid){alert('Sélectionnez un parent.');return;}
+    if(!DB.liens.find(l=>l.parent===pid&&l.enfant===modalTargetId)){DB.liens.push({parent:pid,enfant:modalTargetId});toast('Lien parent ajouté');}
+  } else if(modalMode==='addConjoint'){
+    const pid=parseInt(document.getElementById('fLinkId').value); if(!pid){alert('Sélectionnez une personne.');return;}
+    if(!DB.conjoints.find(c=>(c.p1===modalTargetId&&c.p2===pid)||(c.p1===pid&&c.p2===modalTargetId))){DB.conjoints.push({p1:modalTargetId,p2:pid});toast('Union enregistrée');}
+  }
+  closeModal(); scheduleSave(); refresh();
+}
+
+function deletePerson(id){
+  const p=getPerson(id); if(!confirm(`Supprimer ${p.prenom} ${p.nom} ?`))return;
+  DB.persons=DB.persons.filter(x=>x.id!==id);
+  DB.liens=DB.liens.filter(l=>l.parent!==id&&l.enfant!==id);
+  DB.conjoints=DB.conjoints.filter(c=>c.p1!==id&&c.p2!==id);
+  selectedId=null; toast(`${p.prenom} ${p.nom} supprimé(e)`);
+  scheduleSave(); refresh();
+  document.getElementById('detailEmpty').style.display='flex';
+  document.getElementById('detailContent').style.display='none';
+}
+
+// ═══════════════════════════════════════════
+// IMPORT / EXPORT
+// ═══════════════════════════════════════════
+function exportJSON(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}));a.download='ancestra_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Export téléchargé');}
+function importJSON(){document.getElementById('importFile').click();}
+function loadJSON(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{DB=JSON.parse(e.target.result);scheduleSave();refresh();toast('Import réussi — '+DB.persons.length+' personnes');}catch(e){alert('Fichier JSON invalide.');}};r.readAsText(f);input.value='';}
+
+// ═══════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════
+function switchTab(tab,btn){
+  currentTab=tab;
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+  document.getElementById('treeView').style.display=tab==='tree'?'block':'none';
+  document.getElementById('listView').style.display=tab==='list'?'flex':'none';
+  document.getElementById('statsView').style.display=tab==='stats'?'flex':'none';
+  if(tab==='tree'){computeLayout();renderTree();}
+  if(tab==='list')renderListTable();
+  if(tab==='stats')renderStats();
+}
+
+function refresh(){
+  renderList();
+  if(selectedId)renderDetail(selectedId);
+  if(currentTab==='tree')renderTree();
+  if(currentTab==='list')renderListTable();
+  if(currentTab==='stats')renderStats();
+}
+
+// ═══════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();document.getElementById('searchInput').focus();}
+  if(e.key==='Escape'){closeModal();document.getElementById('userDropdown').classList.remove('open');}
+  if((e.ctrlKey||e.metaKey)&&e.key==='n'){e.preventDefault();openModal('add',null);}
+  if((e.ctrlKey||e.metaKey)&&e.key==='e'){e.preventDefault();exportJSON();}
+});
+
+window.addEventListener('resize',()=>{if(currentTab==='tree')renderTree();});
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+async function init(){
+  isDemoMode = !!localStorage.getItem(DEMO_MODE_KEY);
+
+  if(SUPABASE_URL!=='VOTRE_URL'&&SUPABASE_ANON_KEY!=='VOTRE_ANON_KEY'){
+    try{
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const {data:{session}} = await supabase.auth.getSession();
+      if(!session&&!isDemoMode){ window.location.href='index.html'; return; }
+      if(session){
+        currentUser = session.user;
+        updateUserUI(currentUser);
+        await loadFromCloud();
+      } else {
+        // Demo mode
+        setSyncStatus('local');
+        const localU = JSON.parse(localStorage.getItem('ancestra_user')||'{}');
+        document.getElementById('userAv').textContent = (localU.name||'D')[0].toUpperCase();
+        document.getElementById('userName').textContent = 'Démo';
+        const local = localStorage.getItem(STORE_KEY);
+        if(local) try{DB=JSON.parse(local);}catch(e){}
+      }
+      supabase.auth.onAuthStateChange((event,session)=>{
+        if(event==='SIGNED_OUT'){ window.location.href='index.html'; }
+      });
+    }catch(e){ console.warn('Supabase error',e); setSyncStatus('local'); }
+  } else {
+    // Non configuré — mode local
+    setSyncStatus('local');
+    document.getElementById('userAv').textContent = 'L';
+    document.getElementById('userName').textContent = 'Local';
+    const local = localStorage.getItem(STORE_KEY);
+    if(local) try{DB=JSON.parse(local);}catch(e){}
+  }
+
+  renderList();
+  computeLayout();
+  renderTree();
+  setTimeout(treeFit,120);
+}
+
+init();
+</script>
+</body>
+</html>
