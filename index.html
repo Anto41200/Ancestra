@@ -680,18 +680,7 @@ CREATE POLICY "Users own their tree" ON family_trees
           </button>
         </div>
 
-        <div class="auth-divider">ou</div>
 
-        <!-- AMÉLIORATION 4 : Google avec fallback -->
-        <button class="btn-google" id="googleBtn" onclick="doGoogle()">
-          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M15.68 8.18c0-.57-.05-1.11-.14-1.64H8v3.1h4.3a3.67 3.67 0 01-1.6 2.41v2h2.6c1.52-1.4 2.38-3.46 2.38-5.87z" fill="#4285F4"/><path d="M8 16c2.16 0 3.97-.72 5.3-1.94l-2.6-2a5.02 5.02 0 01-2.7.75 5 5 0 01-4.7-3.44H.62v2.06A8 8 0 008 16z" fill="#34A853"/><path d="M3.3 9.37A5.06 5.06 0 013.04 8c0-.47.08-.93.26-1.37V4.57H.62A8 8 0 000 8c0 1.29.31 2.51.62 3.43l2.68-2.06z" fill="#FBBC05"/><path d="M8 3.18c1.22 0 2.31.42 3.17 1.24l2.38-2.38A8 8 0 00.62 4.57L3.3 6.63A5 5 0 018 3.18z" fill="#EA4335"/></svg>
-          Continuer avec Google
-        </button>
-
-        <div class="google-fallback" id="googleFallback">
-          La connexion Google n'a pas fonctionné.<br>
-          <a onclick="switchToEmail()">Créer un compte avec votre email</a> ou vérifiez que les popups sont autorisées.
-        </div>
 
       </div>
     </div>
@@ -737,7 +726,7 @@ CREATE POLICY "Users own their tree" ON family_trees
 //  ⚙️  CONFIGURATION — REMPLACEZ CES DEUX LIGNES
 // ═══════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://jhcuqfyxtkpslyddmarz.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_vBx0Rl6GQF-V7YNfaKuxkg_wqrkyXws';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpoY3VxZnl4dGtwc2x5ZGRtYXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTU0NTcsImV4cCI6MjA5MzM3MTQ1N30.OWvwR9BWtaPHu5ImOSK6H4nqx7wJ9ufUa0G4lDCfTrU';
 // ═══════════════════════════════════════════════════════
 
 let sbClient = null;
@@ -748,6 +737,12 @@ function initSupabase() {
     document.getElementById('configBanner').style.display = 'block';
     document.getElementById('configBanner').style.top = '0';
     document.querySelector('.page').style.paddingTop = '40px';
+    configured = false;
+    return false;
+  }
+  // La vraie anon key Supabase commence toujours par "eyJ"
+  if (!SUPABASE_ANON_KEY.startsWith('eyJ')) {
+    showError('❌ Clé Supabase invalide. Dans ton dashboard Supabase → Project Settings → API, copie la clé "anon public" (elle commence par eyJ...)');
     configured = false;
     return false;
   }
