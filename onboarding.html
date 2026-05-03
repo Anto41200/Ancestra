@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ancestra — Votre histoire</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #0c0b09; --bg2: #141310; --bg3: #1e1d1a; --bg4: #282724;
+  --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+  --text: #f2ede4; --text2: #9a968f; --text3: #4e4c48;
+  --gold: #c9a84c; --gold2: #e8c96a; --gold-dim: rgba(201,168,76,0.12);
+  --blue: rgba(74,138,181,0.15); --blue-border: rgba(74,138,181,0.3); --blue-text: #6aaad5;
+  --pink: rgba(181,106,122,0.15); --pink-border: rgba(181,106,122,0.3); --pink-text: #d57a8a;
+  --radius: 10px; --radius-lg: 16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+/* ── PROGRESS BAR ── */
+.progress-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--bg3); z-index: 100;
+}
+.progress-fill {
+  height: 100%; background: var(--gold);
+  transition: width 0.5s ease;
+}
+
+/* ── HEADER ── */
+.ob-header {
+  position: fixed; top: 3px; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 36px; z-index: 90;
+  background: linear-gradient(to bottom, rgba(12,11,9,0.95), transparent);
+}
+.logo {
+  font-family: 'Playfair Display', serif; font-size: 20px;
+  color: var(--gold); display: flex; align-items: center; gap: 9px;
+}
+.logo-mark {
+  width: 30px; height: 30px; border: 1px solid var(--gold); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-dim);
+}
+.step-indicator { font-size: 11px; color: var(--text3); letter-spacing: 0.08em; }
+
+/* ── MAIN LAYOUT ── */
+.ob-page {
+  display: none; min-height: 100vh;
+  padding: 100px 36px 60px;
+  animation: fadeIn 0.4s ease;
+}
+.ob-page.active { display: flex; flex-direction: column; align-items: center; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+.ob-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(24px, 3.5vw, 38px);
+  text-align: center; margin-bottom: 8px;
+}
+.ob-title em { font-style: italic; color: var(--gold); }
+.ob-sub { font-size: 14px; color: var(--text2); text-align: center; margin-bottom: 40px; max-width: 500px; line-height: 1.7; }
+
+/* ── TWO COLUMN LAYOUT ── */
+.ob-cols {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 24px; width: 100%; max-width: 900px;
+}
+@media (max-width: 720px) { .ob-cols { grid-template-columns: 1fr; } }
+
+/* ── CARD ── */
+.ob-card {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--radius-lg); padding: 28px;
+  position: relative; overflow: hidden;
+}
+.ob-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.ob-card.self::before { background: linear-gradient(90deg, var(--gold), transparent); }
+.ob-card.partner::before { background: linear-gradient(90deg, var(--pink-text), transparent); }
+.ob-card.father::before { background: linear-gradient(90deg, var(--blue-text), transparent); }
+.ob-card.mother::before { background: linear-gradient(90deg, var(--pink-text), transparent); }
+.ob-card.fatherp::before { background: linear-gradient(90deg, var(--blue-text), transparent); }
+.ob-card.motherp::before { background: linear-gradient(90deg, var(--pink-text), transparent); }
+
+.card-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
+  margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+}
+.card-label .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+}
+.self .dot { background: var(--gold); }
+.partner .dot { background: var(--pink-text); }
+.father .dot { background: var(--blue-text); }
+.mother .dot { background: var(--pink-text); }
+.fatherp .dot { background: var(--blue-text); }
+.motherp .dot { background: var(--pink-text); }
+
+.self .card-label { color: var(--gold); }
+.partner .card-label { color: var(--pink-text); }
+.father .card-label { color: var(--blue-text); }
+.mother .card-label { color: var(--pink-text); }
+.fatherp .card-label { color: var(--blue-text); }
+.motherp .card-label { color: var(--pink-text); }
+
+/* ── FORM ── */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.form-row.full { grid-template-columns: 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.form-group label {
+  font-size: 10.5px; color: var(--text3); font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.form-group input, .form-group select {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 9px 12px;
+  font-size: 13px; font-family: 'DM Sans', sans-serif;
+  color: var(--text); outline: none; transition: border-color 0.2s;
+  width: 100%;
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--gold); }
+.form-group input::placeholder { color: var(--text3); }
+.form-group select option { background: var(--bg3); }
+
+.section-sep {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text3); margin: 14px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Skip toggle */
+.skip-toggle {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text3); margin-bottom: 16px;
+  cursor: pointer; user-select: none;
+}
+.skip-toggle input[type=checkbox] { accent-color: var(--gold); width: 14px; height: 14px; cursor: pointer; }
+.skip-overlay {
+  position: absolute; inset: 0; background: rgba(12,11,9,0.75);
+  border-radius: var(--radius-lg); display: none;
+  align-items: center; justify-content: center;
+  font-size: 13px; color: var(--text3); flex-direction: column; gap: 8px;
+  backdrop-filter: blur(2px);
+}
+.skip-overlay.visible { display: flex; }
+.skip-overlay span { font-size: 28px; }
+
+/* ── NAV BUTTONS ── */
+.ob-nav {
+  display: flex; justify-content: center; gap: 12px;
+  margin-top: 36px; width: 100%; max-width: 900px;
+}
+.btn-prev {
+  padding: 12px 28px; background: transparent;
+  border: 1px solid var(--border2); border-radius: var(--radius);
+  color: var(--text2); font-family: 'DM Sans', sans-serif;
+  font-size: 14px; cursor: pointer; transition: all 0.2s;
+}
+.btn-prev:hover { border-color: var(--border2); background: var(--bg3); color: var(--text); }
+.btn-next {
+  padding: 12px 36px; background: var(--gold);
+  border: none; border-radius: var(--radius);
+  color: #1a1610; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: background 0.2s; display: flex; align-items: center; gap: 8px;
+  min-width: 180px; justify-content: center;
+}
+.btn-next:hover { background: var(--gold2); }
+.btn-next:disabled { opacity: 0.6; cursor: not-allowed; }
+.spinner-sm {
+  width: 14px; height: 14px; border: 2px solid rgba(26,22,16,0.3);
+  border-top-color: #1a1610; border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── STEP 3 : SUCCESS ── */
+#step3 {
+  text-align: center; justify-content: center; align-items: center;
+}
+.success-icon { font-size: 64px; margin-bottom: 20px; animation: popIn 0.5s ease; }
+@keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.success-tree {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 8px; margin: 32px 0;
+}
+.tree-preview-node {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 10px 16px;
+  font-size: 12px; text-align: center; position: relative;
+}
+.tree-preview-node .name { font-weight: 500; color: var(--text); }
+.tree-preview-node .meta { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.tree-preview-node.center-node {
+  background: var(--gold-dim); border-color: rgba(201,168,76,0.4);
+  transform: scale(1.1);
+}
+.tree-preview-node.center-node .name { color: var(--gold); }
+
+/* ── CANVAS BG ── */
+.bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.ob-page { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+
+<canvas class="bg-canvas" id="bgCanvas"></canvas>
+
+<div class="progress-bar">
+  <div class="progress-fill" id="progressFill" style="width:33%"></div>
+</div>
+
+<div class="ob-header">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="4" r="2.5" fill="#c9a84c"/>
+        <circle cx="4" cy="13" r="2.5" fill="#c9a84c"/>
+        <circle cx="14" cy="13" r="2.5" fill="#c9a84c"/>
+        <line x1="9" y1="6.5" x2="4" y2="10.5" stroke="#c9a84c" stroke-width="1.2"/>
+        <line x1="9" y1="6.5" x2="14" y2="10.5" stroke="#c9a84c" stroke-width="1.2"/>
+      </svg>
+    </div>
+    Ancestra
+  </div>
+  <div class="step-indicator" id="stepLabel">Étape 1 sur 2</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- STEP 1 — Vous + Conjoint(e)                -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="ob-page active" id="step1">
+  <div class="ob-title">Parlons de <em>vous</em></div>
+  <p class="ob-sub">Ces informations formeront le cœur de votre arbre. Remplissez ce que vous savez, le reste peut être ajouté plus tard.</p>
+
+  <div class="ob-cols">
+    <!-- VOUS -->
+    <div class="ob-card self">
+      <div class="card-label"><div class="dot"></div>Vous</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prénom *</label>
+          <input id="s_prenom" placeholder="Votre prénom">
+        </div>
+        <div class="form-group">
+          <label>Nom de famille *</label>
+          <input id="s_nom" placeholder="Votre nom">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Sexe</label>
+          <select id="s_sexe">
+            <option value="m">Homme</option>
+            <option value="f">Femme</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Profession</label>
+          <input id="s_profession" placeholder="ex: Architecte">
+        </div>
+      </div>
+
+      <div class="section-sep">Naissance</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="s_naissance" placeholder="JJ/MM/AAAA" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="s_lieu_naiss" placeholder="Ville, Pays">
+        </div>
+      </div>
+
+      <div class="section-sep">Mariage / Union</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="s_mariage" placeholder="JJ/MM/AAAA" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="s_lieu_mariage" placeholder="Ville, Pays">
+        </div>
+      </div>
+
+      <div class="section-sep">Décès (optionnel)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="s_deces" placeholder="JJ/MM/AAAA" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="s_lieu_deces" placeholder="Ville, Pays">
+        </div>
+      </div>
+    </div>
+
+    <!-- CONJOINT(E) -->
+    <div class="ob-card partner" id="partnerCard">
+      <div class="skip-toggle" onclick="toggleSkip('partner')">
+        <input type="checkbox" id="skipPartner">
+        <span>Je n'ai pas de conjoint(e) pour l'instant</span>
+      </div>
+      <div class="skip-overlay" id="skipOverlayPartner">
+        <span>💑</span>
+        Vous pourrez ajouter votre conjoint(e) plus tard
+      </div>
+
+      <div class="card-label"><div class="dot"></div>Votre conjoint(e)</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prénom</label>
+          <input id="p_prenom" placeholder="Prénom">
+        </div>
+        <div class="form-group">
+          <label>Nom de famille</label>
+          <input id="p_nom" placeholder="Nom">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Sexe</label>
+          <select id="p_sexe">
+            <option value="f">Femme</option>
+            <option value="m">Homme</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Profession</label>
+          <input id="p_profession" placeholder="ex: Médecin">
+        </div>
+      </div>
+
+      <div class="section-sep">Naissance</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="p_naissance" placeholder="JJ/MM/AAAA" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="p_lieu_naiss" placeholder="Ville, Pays">
+        </div>
+      </div>
+
+      <div class="section-sep">Décès (optionnel)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="p_deces" placeholder="JJ/MM/AAAA" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="p_lieu_deces" placeholder="Ville, Pays">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ob-nav">
+    <button class="btn-next" onclick="goStep2()">
+      Continuer — Mes parents →
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- STEP 2 — Père + Mère                       -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="ob-page" id="step2">
+  <div class="ob-title">Vos <em>parents</em></div>
+  <p class="ob-sub">Ajoutez ce que vous connaissez. Ces informations s'afficheront au-dessus de vous dans l'arbre.</p>
+
+  <div class="ob-cols">
+    <!-- PÈRE -->
+    <div class="ob-card father" id="fatherCard">
+      <div class="skip-toggle" onclick="toggleSkip('father')">
+        <input type="checkbox" id="skipFather">
+        <span>Je ne connais pas mon père</span>
+      </div>
+      <div class="skip-overlay" id="skipOverlayFather">
+        <span>👤</span>
+        Vous pourrez ajouter votre père plus tard
+      </div>
+
+      <div class="card-label"><div class="dot"></div>Votre père</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prénom</label>
+          <input id="f_prenom" placeholder="Prénom">
+        </div>
+        <div class="form-group">
+          <label>Nom</label>
+          <input id="f_nom" placeholder="Nom">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Profession</label>
+        <input id="f_profession" placeholder="ex: Ingénieur">
+      </div>
+
+      <div class="section-sep">Naissance</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="f_naissance" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="f_lieu_naiss" placeholder="Ville, Pays">
+        </div>
+      </div>
+
+      <div class="section-sep">Décès (optionnel)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="f_deces" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="f_lieu_deces" placeholder="Ville, Pays">
+        </div>
+      </div>
+    </div>
+
+    <!-- MÈRE -->
+    <div class="ob-card mother" id="motherCard">
+      <div class="skip-toggle" onclick="toggleSkip('mother')">
+        <input type="checkbox" id="skipMother">
+        <span>Je ne connais pas ma mère</span>
+      </div>
+      <div class="skip-overlay" id="skipOverlayMother">
+        <span>👤</span>
+        Vous pourrez ajouter votre mère plus tard
+      </div>
+
+      <div class="card-label"><div class="dot"></div>Votre mère</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prénom</label>
+          <input id="m_prenom" placeholder="Prénom">
+        </div>
+        <div class="form-group">
+          <label>Nom de jeune fille</label>
+          <input id="m_nom" placeholder="Nom">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Profession</label>
+        <input id="m_profession" placeholder="ex: Institutrice">
+      </div>
+
+      <div class="section-sep">Naissance</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="m_naissance" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="m_lieu_naiss" placeholder="Ville, Pays">
+        </div>
+      </div>
+
+      <div class="section-sep">Décès (optionnel)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input id="m_deces" type="date">
+        </div>
+        <div class="form-group">
+          <label>Lieu</label>
+          <input id="m_lieu_deces" placeholder="Ville, Pays">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ob-nav">
+    <button class="btn-prev" onclick="goStep(1)">← Retour</button>
+    <button class="btn-next" id="finishBtn" onclick="finishOnboarding()">
+      <span id="finishLabel">Créer mon arbre ✦</span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- STEP 3 — Succès                            -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="ob-page" id="step3">
+  <div class="success-icon">🌳</div>
+  <div class="ob-title">Votre arbre est <em>prêt</em> !</div>
+  <p class="ob-sub" id="successSub">Votre histoire familiale commence ici. Vous pourrez continuer à l'enrichir à tout moment.</p>
+
+  <div class="success-tree" id="successTree"></div>
+
+  <div class="ob-nav" style="margin-top: 24px;">
+    <button class="btn-next" onclick="window.location.href='app.html'">
+      Accéder à mon arbre →
+    </button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jhcuqfyxtkpslyddmarz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpoY3VxZnl4dGtwc2x5ZGRtYXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTU0NTcsImV4cCI6MjA5MzM3MTQ1N30.OWvwR9BWtaPHu5ImOSK6H4nqx7wJ9ufUa0G4lDCfTrU';
+const STORE_KEY = 'ancestra_v1';
+
+let sbClient = null;
+let currentUser = null;
+let currentStep = 1;
+
+// ── BACKGROUND ──
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+let nodes = [];
+function initBG() {
+  bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight;
+  nodes = Array.from({length: 22}, () => ({
+    x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height,
+    vx: (Math.random()-0.5)*0.25, vy: (Math.random()-0.5)*0.25, r: Math.random()*1.5+0.5
+  }));
+}
+function drawBG() {
+  bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+  for (const n of nodes) {
+    n.x+=n.vx; n.y+=n.vy;
+    if(n.x<0||n.x>bgCanvas.width) n.vx*=-1;
+    if(n.y<0||n.y>bgCanvas.height) n.vy*=-1;
+  }
+  for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) {
+    const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y, d=Math.sqrt(dx*dx+dy*dy);
+    if(d<140){bgCtx.beginPath();bgCtx.moveTo(nodes[i].x,nodes[i].y);bgCtx.lineTo(nodes[j].x,nodes[j].y);bgCtx.strokeStyle=`rgba(201,168,76,${0.03*(1-d/140)})`;bgCtx.lineWidth=1;bgCtx.stroke();}
+  }
+  for (const n of nodes) { bgCtx.beginPath();bgCtx.arc(n.x,n.y,n.r,0,Math.PI*2);bgCtx.fillStyle='rgba(201,168,76,0.12)';bgCtx.fill(); }
+  requestAnimationFrame(drawBG);
+}
+window.addEventListener('resize', initBG);
+initBG(); drawBG();
+
+// ── SKIP TOGGLE ──
+function toggleSkip(who) {
+  const cb = document.getElementById('skip' + who.charAt(0).toUpperCase() + who.slice(1));
+  const overlay = document.getElementById('skipOverlay' + who.charAt(0).toUpperCase() + who.slice(1));
+  cb.checked = !cb.checked;
+  overlay.classList.toggle('visible', cb.checked);
+}
+
+// ── DATE → YEAR HELPER ──
+function dateToYear(val) {
+  if (!val) return '';
+  // If it's a date input value (YYYY-MM-DD)
+  if (val.includes('-')) return val.split('-')[0];
+  return val;
+}
+
+// ── FORMAT DATE DISPLAY ──
+function formatDate(val) {
+  if (!val) return '';
+  if (val.includes('-')) {
+    const [y,m,d] = val.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  return val;
+}
+
+// ── NAVIGATION ──
+function goStep(n) {
+  document.getElementById('step' + currentStep).classList.remove('active');
+  currentStep = n;
+  document.getElementById('step' + n).classList.add('active');
+  document.getElementById('progressFill').style.width = (n === 1 ? 33 : n === 2 ? 66 : 100) + '%';
+  document.getElementById('stepLabel').textContent = n < 3 ? `Étape ${n} sur 2` : 'Terminé !';
+  window.scrollTo(0, 0);
+}
+
+function goStep2() {
+  const prenom = document.getElementById('s_prenom').value.trim();
+  const nom = document.getElementById('s_nom').value.trim();
+  if (!prenom || !nom) {
+    document.getElementById('s_prenom').style.borderColor = prenom ? '' : '#c97a6a';
+    document.getElementById('s_nom').style.borderColor = nom ? '' : '#c97a6a';
+    return;
+  }
+  document.getElementById('s_prenom').style.borderColor = '';
+  document.getElementById('s_nom').style.borderColor = '';
+  goStep(2);
+}
+
+// ── AUTO-FILL PARTNER LAST NAME from self ──
+document.getElementById('s_nom').addEventListener('blur', function() {
+  const partnerNom = document.getElementById('p_nom');
+  if (!partnerNom.value && this.value) {
+    // suggest same family name if partner box empty
+    partnerNom.placeholder = 'ex: ' + this.value + ' (ou autre)';
+  }
+});
+
+// ── BUILD DB FROM FORM ──
+function buildDB() {
+  const persons = [];
+  const liens = [];
+  const conjoints = [];
+  let nextId = 1;
+
+  const v = id => document.getElementById(id).value.trim();
+
+  // --- MOI ---
+  const moi = {
+    id: nextId++,
+    prenom: v('s_prenom'),
+    nom: v('s_nom'),
+    sexe: v('s_sexe'),
+    naissance: dateToYear(v('s_naissance')),
+    naissance_full: v('s_naissance'),
+    lieu_naissance: v('s_lieu_naiss'),
+    deces: dateToYear(v('s_deces')),
+    lieu_deces: v('s_lieu_deces'),
+    profession: v('s_profession'),
+    mariage: v('s_mariage'),
+    lieu_mariage: v('s_lieu_mariage'),
+    notes: '',
+    isRoot: true
+  };
+  persons.push(moi);
+
+  // --- CONJOINT(E) ---
+  let conjointId = null;
+  if (!document.getElementById('skipPartner').checked && v('p_prenom')) {
+    const conj = {
+      id: nextId++,
+      prenom: v('p_prenom'),
+      nom: v('p_nom') || moi.nom,
+      sexe: v('p_sexe'),
+      naissance: dateToYear(v('p_naissance')),
+      naissance_full: v('p_naissance'),
+      lieu_naissance: v('p_lieu_naiss'),
+      deces: dateToYear(v('p_deces')),
+      lieu_deces: v('p_lieu_deces'),
+      profession: v('p_profession'),
+      notes: ''
+    };
+    persons.push(conj);
+    conjointId = conj.id;
+    conjoints.push({ p1: moi.id, p2: conj.id, mariage: moi.mariage, lieu_mariage: moi.lieu_mariage });
+  }
+
+  // --- PÈRE ---
+  let pereId = null;
+  if (!document.getElementById('skipFather').checked && v('f_prenom')) {
+    const pere = {
+      id: nextId++,
+      prenom: v('f_prenom'),
+      nom: v('f_nom') || moi.nom,
+      sexe: 'm',
+      naissance: dateToYear(v('f_naissance')),
+      naissance_full: v('f_naissance'),
+      lieu_naissance: v('f_lieu_naiss'),
+      deces: dateToYear(v('f_deces')),
+      lieu_deces: v('f_lieu_deces'),
+      profession: v('f_profession'),
+      notes: ''
+    };
+    persons.push(pere);
+    pereId = pere.id;
+    liens.push({ parent: pere.id, enfant: moi.id });
+  }
+
+  // --- MÈRE ---
+  let mereId = null;
+  if (!document.getElementById('skipMother').checked && v('m_prenom')) {
+    const mere = {
+      id: nextId++,
+      prenom: v('m_prenom'),
+      nom: v('m_nom'),
+      sexe: 'f',
+      naissance: dateToYear(v('m_naissance')),
+      naissance_full: v('m_naissance'),
+      lieu_naissance: v('m_lieu_naiss'),
+      deces: dateToYear(v('m_deces')),
+      lieu_deces: v('m_lieu_deces'),
+      profession: v('m_profession'),
+      notes: ''
+    };
+    persons.push(mere);
+    mereId = mere.id;
+    liens.push({ parent: mere.id, enfant: moi.id });
+    // Lier père et mère comme conjoints si les deux existent
+    if (pereId) conjoints.push({ p1: pereId, p2: mereId });
+  }
+
+  return { persons, liens, conjoints, nextId };
+}
+
+// ── SUCCESS PREVIEW ──
+function buildSuccessPreview(DB) {
+  const moi = DB.persons.find(p => p.isRoot);
+  const parents = DB.liens.filter(l => l.enfant === moi.id).map(l => DB.persons.find(p => p.id === l.parent)).filter(Boolean);
+  const conjoint = DB.conjoints.length ? DB.persons.find(p => p.id === (DB.conjoints[0].p1 === moi.id ? DB.conjoints[0].p2 : DB.conjoints[0].p1)) : null;
+
+  let html = '';
+  if (parents.length) {
+    html += `<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-end">`;
+    parents.forEach(p => {
+      html += `<div class="tree-preview-node"><div class="name">${p.prenom}</div><div class="meta">${p.naissance||'?'}</div></div>`;
+    });
+    html += `</div>`;
+  }
+  html += `<div style="display:flex;gap:8px;align-items:center">`;
+  html += `<div class="tree-preview-node center-node"><div class="name">${moi.prenom} ${moi.nom}</div><div class="meta">Vous ✦</div></div>`;
+  if (conjoint) html += `<div class="tree-preview-node"><div class="name">${conjoint.prenom}</div><div class="meta">Conjoint(e)</div></div>`;
+  html += `</div>`;
+  document.getElementById('successTree').innerHTML = html;
+
+  const count = DB.persons.length;
+  document.getElementById('successSub').textContent = `${count} personne${count>1?'s':''} ajoutée${count>1?'s':''} dans votre arbre. Vous pourrez continuer à l'enrichir à tout moment.`;
+}
+
+// ── FINISH ──
+async function finishOnboarding() {
+  const btn = document.getElementById('finishBtn');
+  const label = document.getElementById('finishLabel');
+  btn.disabled = true;
+  label.innerHTML = '<div class="spinner-sm"></div>';
+
+  const DB = buildDB();
+
+  // Sauvegarder en localStorage
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  localStorage.setItem('ancestra_onboarding_done', '1');
+
+  // Sauvegarder en cloud si connecté
+  try {
+    if (sbClient && currentUser) {
+      await sbClient.from('family_trees').upsert(
+        { user_id: currentUser.id, data: DB, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+    }
+  } catch(e) {
+    console.warn('Cloud save error (onboarding):', e);
+  }
+
+  buildSuccessPreview(DB);
+  goStep(3);
+  btn.disabled = false;
+  label.textContent = 'Créer mon arbre ✦';
+}
+
+// ── INIT ──
+async function init() {
+  // Si onboarding déjà fait, aller direct à l'arbre
+  if (localStorage.getItem('ancestra_onboarding_done')) {
+    window.location.href = 'app.html';
+    return;
+  }
+
+  try {
+    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { session } } = await sbClient.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      // Auto-fill prénom/nom depuis les metadata du compte
+      const meta = session.user.user_metadata;
+      if (meta?.full_name) {
+        const parts = meta.full_name.split(' ');
+        if (parts[0]) document.getElementById('s_prenom').value = parts[0];
+        if (parts[1]) document.getElementById('s_nom').value = parts.slice(1).join(' ');
+      }
+    }
+  } catch(e) {
+    console.warn('Supabase init error:', e.message);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
